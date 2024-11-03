@@ -156,6 +156,25 @@ impl<T> DynamicArray<T> {
         slice.iter().any(|x| *x == item)
     }
 
+    /// get position of an item
+    ///
+    /// * `item`: item
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use dsa::dynamic_array::DynamicArray;
+    /// let arr = DynamicArray::from_array(&[1], 0);
+    /// assert_eq!(arr.position(1), Some(0));
+    /// assert_eq!(arr.position(2), None);
+    /// ```
+    pub fn position(&self, item: T) -> Option<usize>
+    where
+        T: PartialEq,
+    {
+        (0..self.size).position(|index| self.data[index] == item)
+    }
+
     /// Expands capacity of dynamic array.
     /// Accomplished by creating a new vector with doubled capacity,
     /// and then copying over data from old to new vector.
@@ -420,6 +439,15 @@ mod tests {
         assert!(DynamicArray::from_array(&[1, 2, 3], 0).contains(1));
         assert!(!DynamicArray::from_array(&[1, 2, 3], 0).contains(0));
         assert!(!DynamicArray::from_array(&[], 0).contains(1));
+    }
+
+    #[test]
+    fn test_position() {
+        let arr = DynamicArray::from_array(&[1, 2, 3], 0);
+        assert_eq!(arr.position(1), Some(0));
+        assert_eq!(arr.position(2), Some(1));
+        assert_eq!(arr.position(3), Some(2));
+        assert_eq!(arr.position(4), None);
     }
 
     #[test]
