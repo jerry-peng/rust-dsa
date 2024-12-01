@@ -1,34 +1,34 @@
+use std::fmt::Debug;
+
 const INDEX_OUT_OF_BOUND_MSG: &str = "Index out of bound";
+
 #[derive(Debug, PartialEq)]
 pub struct DynamicArray<T> {
-    placeholder: T,
     data: Vec<T>,
     capacity: usize,
     size: usize,
 }
 
-impl<T> DynamicArray<T> {
+impl<T> DynamicArray<T>
+where
+    T: Clone + PartialEq + Default,
+{
     /// Creates new sized dynamic array.
     ///
     /// * `capacity`: capacity of dynamic array
-    /// * `placeholder`: placeholder value for unutilized spaces
     ///
     /// # Examples
     /// ```
     /// use dsa::dynamic_array::DynamicArray;
-    /// let arr = DynamicArray::new(2, 0);
+    /// let arr: DynamicArray<isize>= DynamicArray::new(2);
     /// assert!(arr.is_empty());
     /// ```
-    pub fn new(capacity: usize, placeholder: T) -> DynamicArray<T>
-    where
-        T: Clone,
-    {
+    pub fn new(capacity: usize) -> DynamicArray<T> {
         let mut data = Vec::with_capacity(capacity);
         for _ in 0..capacity {
-            data.push(placeholder.clone())
+            data.push(T::default())
         }
         DynamicArray {
-            placeholder,
             data,
             capacity,
             size: 0,
@@ -38,20 +38,15 @@ impl<T> DynamicArray<T> {
     /// Creates new dynamic array from array slice.
     ///
     /// * `arr`: array slice
-    /// * `placeholder`: placeholder value for unutilized spaces
     ///
     /// # Examples
     /// ```
     /// use dsa::dynamic_array::DynamicArray;
-    /// let arr = DynamicArray::from_array(&["a", "bc", "def"], "12");
+    /// let arr = DynamicArray::from_array(&["a", "bc", "def"]);
     /// assert_eq!(arr.len(), 3);
     /// ```
-    pub fn from_array(arr: &[T], placeholder: T) -> DynamicArray<T>
-    where
-        T: Clone,
-    {
+    pub fn from_array(arr: &[T]) -> DynamicArray<T> {
         DynamicArray {
-            placeholder,
             data: arr.to_vec(),
             capacity: arr.len(),
             size: arr.len(),
@@ -65,7 +60,7 @@ impl<T> DynamicArray<T> {
     /// # Example
     /// ```
     /// use dsa::dynamic_array::DynamicArray;
-    /// let mut arr = DynamicArray::from_array(&[1], 0);
+    /// let mut arr = DynamicArray::from_array(&[1]);
     /// let item = *arr.get_ref(0).unwrap();
     /// assert_eq!(item, 1);
     /// let mut item = *arr.get_ref(0).unwrap();
@@ -89,7 +84,7 @@ impl<T> DynamicArray<T> {
     /// # Example
     /// ```
     /// use dsa::dynamic_array::DynamicArray;
-    /// let mut arr = DynamicArray::from_array(&[1], 0);
+    /// let mut arr = DynamicArray::from_array(&[1]);
     /// if let Some(item) = arr.get_mut_ref(0){
     ///     *item += 2
     /// }
@@ -111,11 +106,11 @@ impl<T> DynamicArray<T> {
     /// # Examples
     /// ```
     /// use dsa::dynamic_array::DynamicArray;
-    /// let arr = DynamicArray::from_array(&[], 0);
+    /// let arr: DynamicArray<isize> = DynamicArray::from_array(&[]);
     /// assert_eq!(arr.len(), 0);
-    /// let arr = DynamicArray::from_array(&[1], 0);
+    /// let arr = DynamicArray::from_array(&[1]);
     /// assert_eq!(arr.len(), 1);
-    /// let arr = DynamicArray::from_array(&["a", "b"], "c");
+    /// let arr = DynamicArray::from_array(&["a", "b"]);
     /// assert_eq!(arr.len(), 2);
     /// ```
     pub fn len(&self) -> usize {
@@ -127,9 +122,9 @@ impl<T> DynamicArray<T> {
     /// # Example
     /// ```
     /// use dsa::dynamic_array::DynamicArray;
-    /// let arr = DynamicArray::from_array(&[], 0);
+    /// let arr: DynamicArray<isize> = DynamicArray::from_array(&[]);
     /// assert!(arr.is_empty());
-    /// let arr = DynamicArray::from_array(&["a"], "o");
+    /// let arr = DynamicArray::from_array(&["a"]);
     /// assert!(!arr.is_empty());
     /// ```
     pub fn is_empty(&self) -> bool {
@@ -144,14 +139,11 @@ impl<T> DynamicArray<T> {
     ///
     /// ```
     /// use dsa::dynamic_array::DynamicArray;
-    /// let arr = DynamicArray::from_array(&[1], 0);
+    /// let arr = DynamicArray::from_array(&[1]);
     /// assert!(arr.contains(1));
     /// assert!(!arr.contains(0));
     /// ```
-    pub fn contains(&self, item: T) -> bool
-    where
-        T: PartialEq,
-    {
+    pub fn contains(&self, item: T) -> bool {
         let slice = &self.data[0..self.size];
         slice.iter().any(|x| *x == item)
     }
@@ -164,38 +156,30 @@ impl<T> DynamicArray<T> {
     ///
     /// ```
     /// use dsa::dynamic_array::DynamicArray;
-    /// let arr = DynamicArray::from_array(&[1], 0);
+    /// let arr = DynamicArray::from_array(&[1]);
     /// assert_eq!(arr.position(1), Some(0));
     /// assert_eq!(arr.position(2), None);
     /// ```
-    pub fn position(&self, item: T) -> Option<usize>
-    where
-        T: PartialEq,
-    {
+    pub fn position(&self, item: T) -> Option<usize> {
         (0..self.size).position(|index| self.data[index] == item)
     }
 
     /// Expands capacity of dynamic array.
     /// Accomplished by creating a new vector with doubled capacity,
     /// and then copying over data from old to new vector.
-    fn expand_capacity(&mut self)
-    where
-        T: Clone,
-    {
+    fn expand_capacity(&mut self) {
         // get new capacity
         let new_capacity = if self.capacity == 0 {
             1
         } else {
             self.capacity * 2
         };
-        // create vec with new capacity, copy over data, then populate
-        // the rest of vec with placeholder
         let mut new_data = Vec::with_capacity(new_capacity);
         for i in 0..self.size {
             new_data.push(self.data[i].clone());
         }
         for _ in self.size..new_capacity {
-            new_data.push(self.placeholder.clone());
+            new_data.push(T::default());
         }
         // re-assign data to new vec
         self.data = new_data;
@@ -209,17 +193,14 @@ impl<T> DynamicArray<T> {
     /// # Example
     /// ```
     /// use dsa::dynamic_array::DynamicArray;
-    /// let mut arr = DynamicArray::new(0, 0);
+    /// let mut arr = DynamicArray::new(0);
     /// assert_eq!(arr.len(), 0);
     /// arr.push(1);
     /// assert_eq!(arr.len(), 1);
     /// arr.push(2);
     /// assert_eq!(arr.len(), 2);
     /// ```
-    pub fn push(&mut self, item: T)
-    where
-        T: Clone,
-    {
+    pub fn push(&mut self, item: T) {
         if self.size == self.capacity {
             self.expand_capacity();
         }
@@ -239,7 +220,7 @@ impl<T> DynamicArray<T> {
     /// # Example
     /// ```
     /// use dsa::dynamic_array::DynamicArray;
-    /// let mut arr = DynamicArray::new(0, 0);
+    /// let mut arr = DynamicArray::new(0);
     /// assert_eq!(arr.len(), 0);
     /// arr.insert(2, 0);
     /// assert_eq!(arr.len(), 1);
@@ -248,10 +229,7 @@ impl<T> DynamicArray<T> {
     /// assert_eq!(arr.pop(), Some(3));
     /// assert_eq!(arr.pop(), Some(2));
     /// ```
-    pub fn insert(&mut self, item: T, index: usize)
-    where
-        T: Clone,
-    {
+    pub fn insert(&mut self, item: T, index: usize) {
         if index > self.size {
             panic!("{}", INDEX_OUT_OF_BOUND_MSG);
         }
@@ -270,16 +248,13 @@ impl<T> DynamicArray<T> {
     /// # Example
     /// ```
     /// use dsa::dynamic_array::DynamicArray;
-    /// let mut arr = DynamicArray::new(0, 0);
+    /// let mut arr = DynamicArray::new(0);
     /// assert_eq!(arr.pop(), None);
     /// assert!(arr.is_empty());
     /// arr.push(1);
     /// assert_eq!(arr.pop(), Some(1));
     /// assert!(arr.is_empty());
-    pub fn pop(&mut self) -> Option<T>
-    where
-        T: Clone,
-    {
+    pub fn pop(&mut self) -> Option<T> {
         if self.size > 0 {
             self.size -= 1;
             Some(self.data[self.size].clone())
@@ -299,14 +274,11 @@ impl<T> DynamicArray<T> {
     /// # Example
     /// ```
     /// use dsa::dynamic_array::DynamicArray;
-    /// let mut arr = DynamicArray::from_array(&[1, 2, 3], 0);
+    /// let mut arr = DynamicArray::from_array(&[1, 2, 3]);
     /// assert_eq!(arr.remove(1), 2);
     /// assert_eq!(arr.pop(), Some(3));
     /// assert_eq!(arr.pop(), Some(1));
-    pub fn remove(&mut self, index: usize) -> T
-    where
-        T: Clone,
-    {
+    pub fn remove(&mut self, index: usize) -> T {
         if index >= self.size {
             panic!("{}", INDEX_OUT_OF_BOUND_MSG);
         }
@@ -325,32 +297,29 @@ mod tests {
 
     #[test]
     fn test_new() {
-        let arr = DynamicArray::new(0, 1);
+        let arr: DynamicArray<isize> = DynamicArray::new(0);
         assert_eq!(
             arr,
             DynamicArray {
-                placeholder: 1,
                 data: vec![],
                 capacity: 0,
                 size: 0
             }
         );
-        let arr = DynamicArray::new(2, 0);
+        let arr = DynamicArray::new(2);
         assert_eq!(
             arr,
             DynamicArray {
-                placeholder: 0,
                 data: vec![0, 0],
                 capacity: 2,
                 size: 0,
             }
         );
-        let arr = DynamicArray::new(3, "a");
+        let arr = DynamicArray::new(3);
         assert_eq!(
             arr,
             DynamicArray {
-                placeholder: "a",
-                data: vec!["a", "a", "a"],
+                data: vec!["", "", ""],
                 capacity: 3,
                 size: 0
             }
@@ -359,31 +328,28 @@ mod tests {
 
     #[test]
     fn test_from_array() {
-        let arr = DynamicArray::from_array(&[], 0);
+        let arr: DynamicArray<isize> = DynamicArray::from_array(&[]);
         assert_eq!(
             arr,
             DynamicArray {
-                placeholder: 0,
                 data: vec![],
                 capacity: 0,
                 size: 0
             }
         );
-        let arr = DynamicArray::from_array(&[1, 2, 3], 1);
+        let arr = DynamicArray::from_array(&[1, 2, 3]);
         assert_eq!(
             arr,
             DynamicArray {
-                placeholder: 1,
                 data: vec![1, 2, 3],
                 capacity: 3,
                 size: 3
             }
         );
-        let arr = DynamicArray::from_array(&["a", "b", "c"], "def");
+        let arr = DynamicArray::from_array(&["a", "b", "c"]);
         assert_eq!(
             arr,
             DynamicArray {
-                placeholder: "def",
                 data: vec!["a", "b", "c"],
                 capacity: 3,
                 size: 3
@@ -393,7 +359,7 @@ mod tests {
 
     #[test]
     fn test_get_ref_some() {
-        let arr = DynamicArray::from_array(&[1, 2, 3], 0);
+        let arr = DynamicArray::from_array(&[1, 2, 3]);
         assert_eq!(arr.get_ref(0), Some(1).as_ref());
         assert_eq!(arr.get_ref(1), Some(2).as_ref());
         assert_eq!(arr.get_ref(2), Some(3).as_ref());
@@ -403,7 +369,7 @@ mod tests {
 
     #[test]
     fn test_get_mut_ref_some() {
-        let mut arr = DynamicArray::from_array(&[1, 2, 3], 0);
+        let mut arr = DynamicArray::from_array(&[1, 2, 3]);
         for index in 0..3 {
             if let Some(item) = arr.get_mut_ref(index) {
                 *item += 2;
@@ -412,7 +378,6 @@ mod tests {
         assert_eq!(
             arr,
             DynamicArray {
-                placeholder: 0,
                 data: vec![3, 4, 5],
                 capacity: 3,
                 size: 3
@@ -424,26 +389,26 @@ mod tests {
 
     #[test]
     fn test_len() {
-        assert_eq!(DynamicArray::from_array(&[1, 2, 3], 0).len(), 3);
-        assert_eq!(DynamicArray::from_array(&[], 0).len(), 0);
+        assert_eq!(DynamicArray::from_array(&[1, 2, 3]).len(), 3);
+        assert_eq!(DynamicArray::<isize>::from_array(&[]).len(), 0);
     }
 
     #[test]
     fn test_is_empty() {
-        assert!(!DynamicArray::from_array(&[1, 2, 3], 0).is_empty());
-        assert!(DynamicArray::from_array(&[], 0).is_empty());
+        assert!(!DynamicArray::from_array(&[1, 2, 3]).is_empty());
+        assert!(DynamicArray::<isize>::from_array(&[]).is_empty());
     }
 
     #[test]
     fn test_contains() {
-        assert!(DynamicArray::from_array(&[1, 2, 3], 0).contains(1));
-        assert!(!DynamicArray::from_array(&[1, 2, 3], 0).contains(0));
-        assert!(!DynamicArray::from_array(&[], 0).contains(1));
+        assert!(DynamicArray::from_array(&[1, 2, 3]).contains(1));
+        assert!(!DynamicArray::from_array(&[1, 2, 3]).contains(0));
+        assert!(!DynamicArray::from_array(&[]).contains(1));
     }
 
     #[test]
     fn test_position() {
-        let arr = DynamicArray::from_array(&[1, 2, 3], 0);
+        let arr = DynamicArray::from_array(&[1, 2, 3]);
         assert_eq!(arr.position(1), Some(0));
         assert_eq!(arr.position(2), Some(1));
         assert_eq!(arr.position(3), Some(2));
@@ -452,12 +417,11 @@ mod tests {
 
     #[test]
     fn test_push() {
-        let mut arr = DynamicArray::new(0, 0);
+        let mut arr = DynamicArray::new(0);
         arr.push(1);
         assert_eq!(
             arr,
             DynamicArray {
-                placeholder: 0,
                 data: vec![1],
                 capacity: 1,
                 size: 1,
@@ -467,7 +431,6 @@ mod tests {
         assert_eq!(
             arr,
             DynamicArray {
-                placeholder: 0,
                 data: vec![1, 2],
                 capacity: 2,
                 size: 2,
@@ -477,7 +440,6 @@ mod tests {
         assert_eq!(
             arr,
             DynamicArray {
-                placeholder: 0,
                 data: vec![1, 2, 3, 0],
                 capacity: 4,
                 size: 3,
@@ -488,7 +450,6 @@ mod tests {
         assert_eq!(
             arr,
             DynamicArray {
-                placeholder: 0,
                 data: vec![1, 2, 3, 4, 5, 0, 0, 0],
                 capacity: 8,
                 size: 5,
@@ -498,12 +459,11 @@ mod tests {
 
     #[test]
     fn test_insert() {
-        let mut arr = DynamicArray::new(0, 0);
+        let mut arr = DynamicArray::new(0);
         arr.insert(1, 0);
         assert_eq!(
             arr,
             DynamicArray {
-                placeholder: 0,
                 data: vec![1],
                 capacity: 1,
                 size: 1,
@@ -513,7 +473,6 @@ mod tests {
         assert_eq!(
             arr,
             DynamicArray {
-                placeholder: 0,
                 data: vec![1, 2],
                 capacity: 2,
                 size: 2,
@@ -523,7 +482,6 @@ mod tests {
         assert_eq!(
             arr,
             DynamicArray {
-                placeholder: 0,
                 data: vec![1, 3, 2, 0],
                 capacity: 4,
                 size: 3,
@@ -534,7 +492,6 @@ mod tests {
         assert_eq!(
             arr,
             DynamicArray {
-                placeholder: 0,
                 data: vec![5, 1, 3, 2, 4, 0, 0, 0],
                 capacity: 8,
                 size: 5,
@@ -545,25 +502,24 @@ mod tests {
     #[test]
     #[should_panic(expected = "Index out of bound")]
     fn test_insert_out_of_bound_error_empty_array() {
-        let mut arr = DynamicArray::new(0, 0);
+        let mut arr = DynamicArray::new(0);
         arr.insert(1, 1)
     }
 
     #[test]
     #[should_panic(expected = "Index out of bound")]
     fn test_insert_out_of_bound_error_non_empty_array() {
-        let mut arr = DynamicArray::from_array(&[1, 2, 3], 0);
+        let mut arr = DynamicArray::from_array(&[1, 2, 3]);
         arr.insert(1, 4)
     }
 
     #[test]
     fn test_pop() {
-        let mut arr = DynamicArray::from_array(&[1, 2, 3], 0);
+        let mut arr = DynamicArray::from_array(&[1, 2, 3]);
         arr.insert(5, 3);
         assert_eq!(
             arr,
             DynamicArray {
-                placeholder: 0,
                 data: vec![1, 2, 3, 5, 0, 0],
                 capacity: 6,
                 size: 4
@@ -573,7 +529,6 @@ mod tests {
         assert_eq!(
             arr,
             DynamicArray {
-                placeholder: 0,
                 data: vec![1, 2, 3, 5, 0, 0],
                 capacity: 6,
                 size: 3
@@ -585,7 +540,6 @@ mod tests {
         assert_eq!(
             arr,
             DynamicArray {
-                placeholder: 0,
                 data: vec![1, 2, 3, 5, 0, 0],
                 capacity: 6,
                 size: 0
@@ -596,11 +550,10 @@ mod tests {
 
     #[test]
     fn test_remove() {
-        let mut arr = DynamicArray::from_array(&[1, 2, 3], 0);
+        let mut arr = DynamicArray::from_array(&[1, 2, 3]);
         assert_eq!(
             arr,
             DynamicArray {
-                placeholder: 0,
                 data: vec![1, 2, 3],
                 capacity: 3,
                 size: 3
@@ -610,7 +563,6 @@ mod tests {
         assert_eq!(
             arr,
             DynamicArray {
-                placeholder: 0,
                 data: vec![1, 3, 3],
                 capacity: 3,
                 size: 2
@@ -620,7 +572,6 @@ mod tests {
         assert_eq!(
             arr,
             DynamicArray {
-                placeholder: 0,
                 data: vec![1, 3, 3],
                 capacity: 3,
                 size: 1
@@ -630,7 +581,6 @@ mod tests {
         assert_eq!(
             arr,
             DynamicArray {
-                placeholder: 0,
                 data: vec![1, 3, 3],
                 capacity: 3,
                 size: 0
@@ -641,14 +591,14 @@ mod tests {
     #[test]
     #[should_panic(expected = "Index out of bound")]
     fn test_remove_out_of_bound_error_empty_array() {
-        let mut arr = DynamicArray::new(2, 0);
+        let mut arr: DynamicArray<isize> = DynamicArray::new(2);
         arr.remove(0);
     }
 
     #[test]
     #[should_panic(expected = "Index out of bound")]
     fn test_remove_out_of_bound_error_non_empty_array() {
-        let mut arr = DynamicArray::from_array(&[1, 2, 3], 0);
+        let mut arr = DynamicArray::from_array(&[1, 2, 3]);
         arr.remove(3);
     }
 }
