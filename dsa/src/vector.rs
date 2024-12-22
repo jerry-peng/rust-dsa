@@ -1,6 +1,10 @@
 //! Vector implemented with unsafe rust
 
-use std::{alloc, ops, ptr, slice};
+use std::{
+    alloc,
+    marker::{self, PhantomData},
+    ops, ptr, slice,
+};
 
 /// Vector struct
 ///
@@ -321,7 +325,7 @@ impl<T> Vector<T> {
     /// *item += 3;
     /// assert_eq!(*item, 6);
     /// ```
-    pub fn get_mut(&self, index: usize) -> Option<&mut T> {
+    pub fn get_mut(&mut self, index: usize) -> Option<&mut T> {
         if index >= self.len {
             None
         } else {
@@ -346,8 +350,10 @@ impl<T> Vector<T> {
     /// ```
     pub fn iter(&self) -> Iter<T> {
         Iter {
-            vec: self,
+            next: self.ptr,
+            len: self.len,
             index: 0,
+            phantom: &marker::PhantomData,
         }
     }
 
@@ -372,10 +378,12 @@ impl<T> Vector<T> {
     ///     assert_eq!(iter.next(), Some(&(i + 2)));
     /// }
     /// ```
-    pub fn iter_mut(&self) -> IterMut<T> {
+    pub fn iter_mut(&mut self) -> IterMut<T> {
         IterMut {
-            vec: self,
+            next: self.ptr,
+            len: self.len,
             index: 0,
+            phantom: &marker::PhantomData,
         }
     }
 }
@@ -387,37 +395,45 @@ impl<T> Default for Vector<T> {
 }
 
 pub struct Iter<'a, T> {
-    vec: &'a Vector<T>,
+    next: ptr::NonNull<T>,
+    len: usize,
     index: usize,
+    #[allow(dead_code)]
+    phantom: &'a marker::PhantomData<T>,
 }
 
 impl<'a, T> Iterator for Iter<'a, T> {
     type Item = &'a T;
     fn next(&mut self) -> Option<Self::Item> {
-        if self.index >= self.vec.len {
+        if self.index >= self.len {
             None
         } else {
-            let item = self.vec.get_ref(self.index);
+            let item_ref = unsafe { self.next.as_ref() };
+            self.next = unsafe { self.next.add(1) };
             self.index += 1;
-            item
+            Some(item_ref)
         }
     }
 }
 
 pub struct IterMut<'a, T> {
-    vec: &'a Vector<T>,
+    next: ptr::NonNull<T>,
+    len: usize,
     index: usize,
+    #[allow(dead_code)]
+    phantom: &'a PhantomData<T>,
 }
 
 impl<'a, T> Iterator for IterMut<'a, T> {
     type Item = &'a mut T;
     fn next(&mut self) -> Option<Self::Item> {
-        if self.index >= self.vec.len {
+        if self.index >= self.len {
             None
         } else {
-            let item = self.vec.get_mut(self.index);
+            let item_ref = unsafe { self.next.as_mut() };
+            self.next = unsafe { self.next.add(1) };
             self.index += 1;
-            item
+            Some(item_ref)
         }
     }
 }
@@ -668,6 +684,7 @@ mod tests {
         assert_eq!(vec.get_ref(1), None);
 
         // test mut ref empty vector
+        let mut vec = Vector::<usize>::new();
         assert_eq!(vec.get_mut(0), None);
         assert_eq!(vec.get_mut(1), None);
 
@@ -678,12 +695,13 @@ mod tests {
         assert_eq!(vec.get_ref(5), None);
 
         // test mut ref non-empty vector
+        let mut vec = Vector::<usize>::from_array(&[1, 2, 3, 4, 5]);
         assert_eq!(vec.get_mut(0), Some(&mut 1));
         assert_eq!(vec.get_mut(4), Some(&mut 5));
         assert_eq!(vec.get_mut(5), None);
 
         // test mut ref mutation
-        let vec = Vector::<usize>::from_array(&[1, 2, 3, 4, 5]);
+        let mut vec = Vector::<usize>::from_array(&[1, 2, 3, 4, 5]);
         for i in 0..=4 {
             let item = vec.get_mut(i).unwrap();
             *item += 1;
@@ -709,12 +727,12 @@ mod tests {
         assert_eq!(iter.next(), None);
 
         // iter_mut empty
-        let vec = Vector::<usize>::new();
+        let mut vec = Vector::<usize>::new();
         let mut iter = vec.iter_mut();
         assert_eq!(iter.next(), None);
 
         // iter_mut non-empty
-        let vec = Vector::<usize>::from_array(&[1, 2, 3, 4, 5]);
+        let mut vec = Vector::<usize>::from_array(&[1, 2, 3, 4, 5]);
         let mut iter = vec.iter_mut();
         for mut i in 1..=5 {
             assert_eq!(iter.next(), Some(&mut i));

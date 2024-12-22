@@ -1,11 +1,11 @@
 //! Singly linked list implemented with safe rust
 
+type Link<T> = Option<Box<Node<T>>>;
+
 #[derive(Debug, PartialEq)]
 pub struct SinglyLinkedList<T> {
     head: Link<T>,
 }
-
-type Link<T> = Option<Box<Node<T>>>;
 
 #[derive(Debug, PartialEq)]
 struct Node<T> {
@@ -178,7 +178,7 @@ impl<T> Iterator for IntoIter<T> {
 
 impl<T> Drop for SinglyLinkedList<T> {
     fn drop(&mut self) {
-        while let Some(_boxed_node) = self.pop() {}
+        while self.pop().is_some() {}
     }
 }
 

@@ -1,51 +1,76 @@
+use std::{alloc, boxed, marker, ptr};
+
 #[derive(Debug, PartialEq)]
 pub struct SinglyLinkedList<T> {
-    head: Link<T>,
+    head: *mut Node<T>,
 }
-
-type Link<T> = Option<Box<Node<T>>>;
 
 #[derive(Debug, PartialEq)]
 struct Node<T> {
     item: T,
-    next: Link<T>,
+    next: *mut Node<T>,
 }
 
 impl<T> SinglyLinkedList<T> {
     pub fn new() -> SinglyLinkedList<T> {
-        SinglyLinkedList { head: None }
+        SinglyLinkedList {
+            head: ptr::null_mut(),
+        }
+    }
+
+    fn alloc_node() -> ptr::NonNull<Node<T>> {
+        // create memory layout for a single node
+        let layout = alloc::Layout::new::<Node<T>>();
+        // allocate memory
+        let raw_ptr = unsafe { alloc::alloc(layout) };
+        // if memory allocation fails, signal error
+        if raw_ptr.is_null() {
+            alloc::handle_alloc_error(layout);
+        }
+        // create non-null pointer
+        unsafe { ptr::NonNull::new_unchecked(raw_ptr as *mut Node<T>) }
     }
 
     pub fn peek(&self) -> Option<&T> {
-        self.head.as_ref().map(|x| &x.item)
+        let head = unsafe { self.head.as_ref() };
+        head.map(|node| &node.item)
     }
 
     pub fn push(&mut self, item: T) {
-        self.head = Some(Box::new(Node {
-            item,
-            next: self.head.take(),
-        }));
+        // allocate memory for new node
+        let new_node: ptr::NonNull<Node<T>> = SinglyLinkedList::alloc_node();
+        // write data to new node
+        unsafe {
+            new_node.write(Node {
+                item,
+                next: self.head,
+            });
+        }
+        // assign head to new node
+        self.head = new_node.as_ptr();
     }
 
     pub fn pop(&mut self) -> Option<T> {
-        match self.head.take() {
-            None => None,
-            Some(boxed_node) => {
-                self.head = boxed_node.next;
-                Some(boxed_node.item)
-            }
+        if self.head.is_null() {
+            None
+        } else {
+            let boxed_head = unsafe { boxed::Box::from_raw(self.head) };
+            self.head = boxed_head.next;
+            Some(boxed_head.item)
         }
     }
 
     pub fn iter(&self) -> Iter<T> {
         Iter {
-            next: self.head.as_deref(),
+            next: self.head,
+            phantom: marker::PhantomData,
         }
     }
 
-    pub fn iter_mut(&mut self) -> IterMut<T> {
+    pub fn iter_mut(&self) -> IterMut<T> {
         IterMut {
-            next: self.head.as_deref_mut(),
+            next: self.head,
+            phantom: marker::PhantomData,
         }
     }
 }
@@ -57,28 +82,34 @@ impl<T> Default for SinglyLinkedList<T> {
 }
 
 pub struct Iter<'a, T> {
-    next: Option<&'a Node<T>>,
+    next: *const Node<T>,
+    phantom: marker::PhantomData<&'a T>,
 }
 
 impl<'a, T> Iterator for Iter<'a, T> {
     type Item = &'a T;
+
     fn next(&mut self) -> Option<Self::Item> {
-        self.next.map(|node| {
-            self.next = node.next.as_deref();
+        let next = unsafe { self.next.as_ref() };
+        next.map(|node| {
+            self.next = node.next;
             &node.item
         })
     }
 }
 
 pub struct IterMut<'a, T> {
-    next: Option<&'a mut Node<T>>,
+    next: *mut Node<T>,
+    phantom: marker::PhantomData<&'a T>,
 }
 
 impl<'a, T> Iterator for IterMut<'a, T> {
     type Item = &'a mut T;
+
     fn next(&mut self) -> Option<Self::Item> {
-        self.next.take().map(|node| {
-            self.next = node.next.as_deref_mut();
+        let next = unsafe { self.next.as_mut() };
+        next.map(|node| {
+            self.next = node.next;
             &mut node.item
         })
     }
@@ -108,7 +139,7 @@ impl<T> Iterator for IntoIter<T> {
 
 impl<T> Drop for SinglyLinkedList<T> {
     fn drop(&mut self) {
-        while let Some(_boxed_node) = self.pop() {}
+        while self.pop().is_some() {}
     }
 }
 
@@ -120,7 +151,9 @@ mod tests {
     fn test_new() {
         assert_eq!(
             SinglyLinkedList::<u32>::new(),
-            SinglyLinkedList { head: None }
+            SinglyLinkedList {
+                head: ptr::null_mut()
+            }
         )
     }
 
