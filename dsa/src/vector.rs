@@ -561,7 +561,7 @@ mod tests {
 
     #[test]
     fn test_create() {
-        // Vector::new()
+        // new()
         assert_eq!(
             Vector::<usize>::new(),
             Vector {
@@ -578,8 +578,25 @@ mod tests {
                 len: 0
             }
         );
+        // default()
+        assert_eq!(
+            Vector::<usize>::default(),
+            Vector {
+                ptr: ptr::NonNull::dangling(),
+                cap: 0,
+                len: 0
+            }
+        );
+        assert_eq!(
+            Vector::<String>::default(),
+            Vector {
+                ptr: ptr::NonNull::dangling(),
+                cap: 0,
+                len: 0
+            }
+        );
 
-        // Vector::new_with_cap()
+        // new_with_cap()
         let vec = Vector::<usize>::new_with_cap(100);
         assert_eq!(vec.len(), 0);
         assert_eq!(vec.cap, 100);
@@ -589,7 +606,7 @@ mod tests {
         assert_eq!(vec.cap, 0);
         assert!(vec.is_empty());
 
-        // Vector::from_array()
+        // from_array()
         let vec = Vector::<usize>::from_array(&[1, 2, 3, 4, 5]);
         assert_eq!(vec.len(), 5);
         assert_eq!(vec.cap, 5);

@@ -1,3 +1,5 @@
+//! Singly linked list implemented with unsafe rust
+//!
 use std::{alloc, boxed, marker, ptr};
 
 #[derive(Debug, PartialEq)]
@@ -12,6 +14,15 @@ struct Node<T> {
 }
 
 impl<T> SinglyLinkedList<T> {
+    /// Create new empty singly linked list
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use dsa::singly_linked_list_safe::SinglyLinkedList;
+    /// let list = SinglyLinkedList::<u8>::new();
+    /// assert_eq!(list.peek(), None);
+    /// ```
     pub fn new() -> SinglyLinkedList<T> {
         SinglyLinkedList {
             head: ptr::null_mut(),
@@ -31,11 +42,33 @@ impl<T> SinglyLinkedList<T> {
         unsafe { ptr::NonNull::new_unchecked(raw_ptr as *mut Node<T>) }
     }
 
+    /// Peek an item in singly linked list
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use dsa::singly_linked_list_safe::SinglyLinkedList;
+    /// let mut list = SinglyLinkedList::<u8>::new();
+    /// assert_eq!(list.peek(), None);
+    /// list.push(2);
+    /// assert_eq!(list.peek(), Some(&2));
+    /// ```
     pub fn peek(&self) -> Option<&T> {
         let head = unsafe { self.head.as_ref() };
         head.map(|node| &node.item)
     }
 
+    /// Push an item to singly linked list
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use dsa::singly_linked_list_safe::SinglyLinkedList;
+    /// let mut list = SinglyLinkedList::<u8>::new();
+    /// assert_eq!(list.peek(), None);
+    /// list.push(2);
+    /// assert_eq!(list.peek(), Some(&2));
+    /// ```
     pub fn push(&mut self, item: T) {
         // allocate memory for new node
         let new_node: ptr::NonNull<Node<T>> = SinglyLinkedList::alloc_node();
@@ -50,6 +83,18 @@ impl<T> SinglyLinkedList<T> {
         self.head = new_node.as_ptr();
     }
 
+    /// Pop an item to singly linked list
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use dsa::singly_linked_list_safe::SinglyLinkedList;
+    /// let mut list = SinglyLinkedList::<u8>::new();
+    /// list.push(2);
+    /// assert_eq!(list.peek(), Some(&2));
+    /// assert_eq!(list.pop(), Some(2));
+    /// assert_eq!(list.peek(), None);
+    /// ```
     pub fn pop(&mut self) -> Option<T> {
         if self.head.is_null() {
             None
@@ -60,6 +105,18 @@ impl<T> SinglyLinkedList<T> {
         }
     }
 
+    /// Iterate singly linked list immutably
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use dsa::singly_linked_list_safe::SinglyLinkedList;
+    /// let mut list = SinglyLinkedList::<u8>::new();
+    /// list.push(2);
+    /// let mut iter = list.iter();
+    /// assert_eq!(iter.next(), Some(&2));
+    /// assert_eq!(iter.next(), None);
+    /// ```
     pub fn iter(&self) -> Iter<T> {
         Iter {
             next: self.head,
@@ -67,7 +124,20 @@ impl<T> SinglyLinkedList<T> {
         }
     }
 
-    pub fn iter_mut(&self) -> IterMut<T> {
+    /// Iterate singly linked list immutably
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use dsa::singly_linked_list_safe::SinglyLinkedList;
+    /// let mut list = SinglyLinkedList::<u8>::new();
+    /// list.push(2);
+    /// let mut iter_mut = list.iter_mut();
+    /// let item = iter_mut.next().unwrap();
+    /// *item += 2;
+    /// assert_eq!(list.peek(), Some(&4));
+    /// ```
+    pub fn iter_mut(&mut self) -> IterMut<T> {
         IterMut {
             next: self.head,
             phantom: marker::PhantomData,
@@ -117,9 +187,20 @@ impl<'a, T> Iterator for IterMut<'a, T> {
 
 impl<T> IntoIterator for SinglyLinkedList<T> {
     type Item = T;
-
     type IntoIter = IntoIter<T>;
 
+    /// Iterate into singly linked list
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use dsa::singly_linked_list_unsafe::SinglyLinkedList;
+    /// let mut list = SinglyLinkedList::<u8>::new();
+    /// list.push(2);
+    /// let mut iter_mut = list.into_iter();
+    /// assert_eq!(iter_mut.next(), Some(2));
+    /// assert_eq!(iter_mut.next(), None);
+    /// ```
     fn into_iter(self) -> Self::IntoIter {
         IntoIter { list: self }
     }
@@ -149,12 +230,20 @@ mod tests {
 
     #[test]
     fn test_new() {
+        // new()
         assert_eq!(
             SinglyLinkedList::<u32>::new(),
             SinglyLinkedList {
                 head: ptr::null_mut()
             }
-        )
+        );
+        // default()
+        assert_eq!(
+            SinglyLinkedList::<u32>::default(),
+            SinglyLinkedList {
+                head: ptr::null_mut()
+            }
+        );
     }
 
     #[test]

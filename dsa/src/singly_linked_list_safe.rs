@@ -156,9 +156,20 @@ impl<'a, T> Iterator for IterMut<'a, T> {
 
 impl<T> IntoIterator for SinglyLinkedList<T> {
     type Item = T;
-
     type IntoIter = IntoIter<T>;
 
+    /// Iterate into singly linked list
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use dsa::singly_linked_list_safe::SinglyLinkedList;
+    /// let mut list = SinglyLinkedList::<u8>::new();
+    /// list.push(2);
+    /// let mut iter_mut = list.into_iter();
+    /// assert_eq!(iter_mut.next(), Some(2));
+    /// assert_eq!(iter_mut.next(), None);
+    /// ```
     fn into_iter(self) -> Self::IntoIter {
         IntoIter { list: self }
     }
@@ -188,10 +199,16 @@ mod tests {
 
     #[test]
     fn test_new() {
+        // new()
         assert_eq!(
             SinglyLinkedList::<u32>::new(),
             SinglyLinkedList { head: None }
-        )
+        );
+        // default()
+        assert_eq!(
+            SinglyLinkedList::<u32>::default(),
+            SinglyLinkedList { head: None }
+        );
     }
 
     #[test]
