@@ -60,6 +60,8 @@ impl<T> SinglyLinkedList<T> {
 
     /// Push an item to singly linked list
     ///
+    /// * `item`: item to push
+    ///
     /// # Example
     ///
     /// ```

@@ -98,6 +98,8 @@ impl<T> DoublyLinkedList<T> {
 
     /// Push an item to front of doubly linked list
     ///
+    /// * `item`: item to push
+    ///
     /// # Example
     ///
     /// ```
@@ -126,6 +128,8 @@ impl<T> DoublyLinkedList<T> {
     }
 
     /// Push an item to back of doubly linked list
+    ///
+    /// * `item`: item to push
     ///
     /// # Example
     ///
