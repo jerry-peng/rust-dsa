@@ -1,5 +1,5 @@
 //! Doubly linked list implemented with safe rust
-//!
+
 use std::cell::{Ref, RefCell, RefMut};
 use std::rc::{Rc, Weak};
 
@@ -13,7 +13,7 @@ pub struct DoublyLinkedList<T> {
 }
 
 #[derive(Debug)]
-pub struct Node<T> {
+struct Node<T> {
     item: T,
     next: StrongLink<T>,
     // use weak reference counter to prevent reference cycles
