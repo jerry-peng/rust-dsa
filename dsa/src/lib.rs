@@ -1,5 +1,5 @@
 #![feature(slice_index_methods)]
-pub mod binary_tree;
+pub mod binary_search_tree;
 pub mod doubly_linked_list_safe;
 pub mod doubly_linked_list_unsafe;
 pub mod queue;
