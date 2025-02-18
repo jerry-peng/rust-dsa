@@ -10,7 +10,10 @@ pub enum Order {
 }
 
 #[derive(Debug)]
-pub struct BinarySearchTree<T> {
+pub struct BinarySearchTree<T>
+where
+    T: Ord + Debug,
+{
     head: Link<T>,
     size: usize,
 }
@@ -92,7 +95,7 @@ impl<T: Ord + Debug> Link<T> {
 }
 
 impl<T: Ord + Debug> BinarySearchTree<T> {
-    /// creates new binary search tree
+    /// Creates new binary search tree
     ///
     /// # Example
     ///
@@ -109,7 +112,7 @@ impl<T: Ord + Debug> BinarySearchTree<T> {
         }
     }
 
-    /// get number of nodes in binary search tree
+    /// Get number of nodes in binary search tree
     ///
     /// # Example
     ///
@@ -126,7 +129,7 @@ impl<T: Ord + Debug> BinarySearchTree<T> {
         self.size
     }
 
-    /// get whether binary search tree is empty
+    /// Get whether binary search tree is empty
     ///
     /// # Example
     ///
@@ -143,9 +146,11 @@ impl<T: Ord + Debug> BinarySearchTree<T> {
         self.size == 0
     }
 
-    /// insert item to binary search tree
+    /// Insert item to binary search tree
     ///
     /// * `item`: item to insert
+    ///
+    /// # Example
     ///
     /// ```
     /// use dsa::binary_search_tree::{BinarySearchTree, DuplicateItem};
@@ -191,9 +196,11 @@ impl<T: Ord + Debug> BinarySearchTree<T> {
         }
     }
 
-    /// remove item from binary search tree
+    /// Remove item from binary search tree
     ///
     /// * `item`: reference to item to remove
+    ///
+    /// # Example
     ///
     /// ```
     /// use dsa::binary_search_tree::BinarySearchTree;
@@ -251,9 +258,11 @@ impl<T: Ord + Debug> BinarySearchTree<T> {
         }
     }
 
-    /// check if binary search tree contains item
+    /// Check if binary search tree contains item
     ///
     /// * `item`: item to check
+    ///
+    /// # Example
     ///
     /// ```
     /// use dsa::binary_search_tree::BinarySearchTree;
@@ -288,7 +297,10 @@ impl<T: Ord + Debug> BinarySearchTree<T> {
         false
     }
 
-    /// get min item in binary search tree
+    /// Get min item in binary search tree
+    ///
+    /// # Example
+    ///
     /// ```
     /// use dsa::binary_search_tree::BinarySearchTree;
     /// let mut tree: BinarySearchTree<i32> = BinarySearchTree::new();
@@ -310,7 +322,10 @@ impl<T: Ord + Debug> BinarySearchTree<T> {
         Some(&curr.item)
     }
 
-    /// get max item in binary search tree
+    /// Get max item in binary search tree
+    ///
+    /// # Example
+    ///
     /// ```
     /// use dsa::binary_search_tree::BinarySearchTree;
     /// let mut tree: BinarySearchTree<i32> = BinarySearchTree::new();
@@ -332,7 +347,10 @@ impl<T: Ord + Debug> BinarySearchTree<T> {
         Some(&curr.item)
     }
 
-    /// pop min item in binary search tree
+    /// Pop min item in binary search tree
+    ///
+    /// # Example
+    ///
     /// ```
     /// use dsa::binary_search_tree::BinarySearchTree;
     /// let mut tree: BinarySearchTree<i32> = BinarySearchTree::new();
@@ -349,7 +367,10 @@ impl<T: Ord + Debug> BinarySearchTree<T> {
         })
     }
 
-    /// pop max item in binary search tree
+    /// Pop max item in binary search tree
+    ///
+    /// # Example
+    ///
     /// ```
     /// use dsa::binary_search_tree::BinarySearchTree;
     /// let mut tree: BinarySearchTree<i32> = BinarySearchTree::new();
@@ -366,8 +387,16 @@ impl<T: Ord + Debug> BinarySearchTree<T> {
         })
     }
 
-    /// create iterator for binary search tree
+    /// Create iterator for binary search tree
+    ///
+    /// # Example
+    ///
     /// ```
+    /// /* Shape
+    ///  *    3
+    ///  *  2   5
+    ///  * 1   4
+    ///  */
     /// use dsa::binary_search_tree::{BinarySearchTree, Order};
     /// let mut tree: BinarySearchTree<i32> = BinarySearchTree::new();
     /// for i in [3, 2, 1, 5, 4] {
@@ -405,10 +434,70 @@ impl<T: Ord + Debug> BinarySearchTree<T> {
             order,
         }
     }
+
+    /// Iterate into binary search tree
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// /* Shape
+    ///  *    3
+    ///  *  2   5
+    ///  * 1   4
+    ///  */
+    /// use dsa::binary_search_tree::{BinarySearchTree, Order};
+    /// let mut tree: BinarySearchTree<i32> = BinarySearchTree::new();
+    /// for i in [3, 2, 1, 5, 4] {
+    ///     tree.insert(i);
+    /// }
+    /// let mut iter = tree.into_iter(Order::In);
+    /// for i in 1..=5 {
+    ///     assert_eq!(iter.next(), Some(i));
+    /// }
+    /// assert_eq!(iter.next(), None);
+    ///
+    /// let mut tree: BinarySearchTree<i32> = BinarySearchTree::new();
+    /// for i in [3, 2, 1, 5, 4] {
+    ///     tree.insert(i);
+    /// }
+    /// let mut iter = tree.into_iter(Order::Pre);
+    /// for i in [3, 2, 1, 5, 4] {
+    ///     assert_eq!(iter.next(), Some(i));
+    /// }
+    /// assert_eq!(iter.next(), None);
+    ///
+    /// let mut tree: BinarySearchTree<i32> = BinarySearchTree::new();
+    /// for i in [3, 2, 1, 5, 4] {
+    ///     tree.insert(i);
+    /// }
+    /// let mut iter = tree.into_iter(Order::Post);
+    /// for i in [1, 2, 4, 5, 3] {
+    ///     assert_eq!(iter.next(), Some(i));
+    /// }
+    /// assert_eq!(iter.next(), None);
+    ///
+    /// let mut tree: BinarySearchTree<i32> = BinarySearchTree::new();
+    /// for i in [3, 2, 1, 5, 4] {
+    ///     tree.insert(i);
+    /// }
+    /// let mut iter = tree.into_iter(Order::Level);
+    /// for i in [3, 2, 5, 1, 4] {
+    ///     assert_eq!(iter.next(), Some(i));
+    /// }
+    /// assert_eq!(iter.next(), None);
+    /// ```
+    pub fn into_iter(mut self, order: Order) -> IntoIter<T> {
+        IntoIter {
+            curr: self.head.0.take().map(|node| *node),
+            nodes: VecDeque::new(),
+            post_nodes: VecDeque::new(),
+            order,
+        }
+    }
 }
 
 impl<T: Ord + Debug> Default for BinarySearchTree<T> {
-    /// creates new binary search tree
+    /// Creates new binary search tree
     ///
     /// # Example
     ///
@@ -450,7 +539,11 @@ where
     T: PartialEq,
 {
     fn level_order_next(&mut self) -> Option<&'a T> {
-        // if current node is Some, push node's left and right child to queue.
+        // self.nodes is a queue in this iterator
+        // if current node is Some:
+        // - push node's left and right child to queue if exists
+        // - pop a new node from queue and assign it to current node
+        // - return old current node's item
         self.curr.map(|node| {
             let item = &node.item;
             if let Some(left) = node.left.0.as_deref() {
@@ -465,6 +558,11 @@ where
     }
 
     fn pre_order_next(&mut self) -> Option<&'a T> {
+        // self.nodes is a stack in this iterator
+        // if current node is Some:
+        // - push node's left and right child to stack if exists
+        // - pop a new node from stack and assign it to current node
+        // - return old current node's item
         self.curr.map(|node| {
             let item = &node.item;
             if let Some(right) = node.right.0.as_deref() {
@@ -479,11 +577,18 @@ where
     }
 
     fn in_order_next(&mut self) -> Option<&'a T> {
+        // self.nodes is a stack in this iterator
+        // if curr is assigned Some:
+        // - store node in stack
+        // - traverse left
         while let Some(curr) = self.curr {
             self.nodes.push_front(curr);
             self.curr = curr.left.0.as_deref();
         }
 
+        // pop a node from stack, if Some:
+        // - set node's right child to curr for left traversal in next call
+        // - return node item
         self.nodes.pop_front().map(|node| {
             self.curr = node.right.0.as_deref();
             &node.item
@@ -491,7 +596,18 @@ where
     }
 
     fn post_order_next(&mut self) -> Option<&'a T> {
+        // self.nodes is a stack in this iterator
         loop {
+            // in post-order traversal, each nodes's item must be returned after
+            // item's right subtree has been processed, which can be signaled using
+            // stack push order, by storing right child before current node, which
+            // results in current node being popped before right child.
+
+            // if curr is Some:
+            // - traverse left
+            // - for each node:
+            //   - store right child if exist
+            //   - store current node
             while let Some(curr) = self.curr {
                 if let Some(right) = curr.right.0.as_deref() {
                     self.nodes.push_front(right);
@@ -500,8 +616,14 @@ where
                 self.curr = curr.left.0.as_deref();
             }
 
-            let front = self.nodes.pop_front();
-            if let Some(front) = front {
+            // pop a node from stack
+            if let Some(front) = self.nodes.pop_front() {
+                // if next node from stack is right child of popped node,
+                // the right child has not been processed.
+                // - pop the right child off stack and assign it to curr
+                // - re-push front (the parent node) and continue this loop iteration,
+                // and the traversal loop above can process right child node
+                // - ass
                 if let Some(front_right) = front.right.0.as_ref() {
                     if let Some(second_front) = self.nodes.front() {
                         if front_right.item == second_front.item {
@@ -511,10 +633,167 @@ where
                         }
                     }
                 }
-                self.curr = None;
+                // return popped node item normally
                 return Some(&front.item);
             } else {
+                // if stack is empty return None
                 return None;
+            }
+        }
+    }
+}
+
+pub struct IntoIter<T> {
+    curr: Option<Node<T>>,
+    nodes: VecDeque<Node<T>>,
+    // post-order iterator uses post_nodes
+    // within a VecDeque item, the first tuple parameter stores
+    // the node, and seocnd parameter stores unprocessed right child
+    post_nodes: VecDeque<(Node<T>, Option<Node<T>>)>,
+    order: Order,
+}
+
+impl<T> Iterator for IntoIter<T>
+where
+    T: PartialEq,
+{
+    type Item = T;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        match self.order {
+            Order::Level => self.level_order_next(),
+            Order::Pre => self.pre_order_next(),
+            Order::In => self.in_order_next(),
+            Order::Post => self.post_order_next(),
+        }
+    }
+}
+
+impl<T> IntoIter<T>
+where
+    T: PartialEq,
+{
+    fn level_order_next(&mut self) -> Option<T> {
+        // self.nodes is a queue in this iterator
+        // if current node is Some:
+        // - destructure node
+        // - push node's left and right child to queue if exists
+        // - pop a new node from queue and assign it to current node
+        // - return old current node's item
+        self.curr.take().map(|node| {
+            let Node { left, right, item } = node;
+            if let Some(left) = left.0 {
+                self.nodes.push_front(*left);
+            }
+            if let Some(right) = right.0 {
+                self.nodes.push_front(*right);
+            }
+            self.curr = self.nodes.pop_back();
+            item
+        })
+    }
+
+    fn pre_order_next(&mut self) -> Option<T> {
+        // self.nodes is a stack in this iterator
+        // if current node is Some:
+        // - destructure node
+        // - push node's left and right child to stack if exists
+        // - pop a new node from stack and assign it to current node
+        // - return old current node's item
+        self.curr.take().map(|node| {
+            let Node { left, right, item } = node;
+            if let Some(right) = right.0 {
+                self.nodes.push_front(*right);
+            }
+            if let Some(left) = left.0 {
+                self.nodes.push_front(*left);
+            }
+            self.curr = self.nodes.pop_front();
+            item
+        })
+    }
+
+    fn in_order_next(&mut self) -> Option<T> {
+        // self.nodes is a stack in this iterator
+        // if curr is assigned Some:
+        // - unlink left child
+        // - store node in stack
+        // - traverse left
+        while let Some(mut curr) = self.curr.take() {
+            let left = curr.left.0.take();
+            self.nodes.push_front(curr);
+            self.curr = left.map(|node| *node);
+        }
+
+        // pop a node from stack, if Some:
+        // - set node's right child to curr for left traversal in next call
+        // - return node item
+        self.nodes.pop_front().map(|node| {
+            self.curr = node.right.0.map(|node| *node);
+            node.item
+        })
+    }
+
+    fn post_order_next(&mut self) -> Option<T> {
+        // self.nodes is a stack in this iterator
+        // within a VecDeque item, the first tuple parameter stores
+        // the node, and seocnd parameter stores unprocessed right child
+        loop {
+            // if curr is assigned Some:
+            // - traverse and unlink left child,
+            // - if right child exists, push curr and right child into post_nodes
+            // - else, just push curr into post_nodes
+            while let Some(mut curr) = self.curr.take() {
+                self.curr = curr.left.0.take().map(|node| *node);
+                let stack_item = if let Some(right) = curr.right.0.take() {
+                    (curr, Some(*right))
+                } else {
+                    (curr, None)
+                };
+                self.post_nodes.push_front(stack_item);
+            }
+
+            // pop a stack item from stack
+            if let Some(mut front) = self.post_nodes.pop_front() {
+                // if item includes unprocessed right child
+                // - take the right child and set it to curr
+                // - re-push node to stack without right child
+                // - continue this iteration so that right child can be
+                // processed by traversal loop above
+                if let Some(right) = front.1.take() {
+                    self.curr = Some(right);
+                    self.post_nodes.push_front(front);
+                    continue;
+                }
+
+                // return popped node item normally
+                return Some(front.0.item);
+            } else {
+                // if stack is empty return None
+                return None;
+            }
+        }
+    }
+}
+
+impl<T> Drop for BinarySearchTree<T>
+where
+    T: Ord + Debug,
+{
+    fn drop(&mut self) {
+        // walk the tree in in-order iteration
+        let mut nodes: Vec<Box<Node<T>>> = Vec::new();
+        if let Some(node) = self.head.0.take() {
+            nodes.push(node);
+        } else {
+            return;
+        }
+        while let Some(node) = nodes.pop() {
+            if let Some(left) = node.left.0 {
+                nodes.push(left);
+            }
+            if let Some(right) = node.right.0 {
+                nodes.push(right);
             }
         }
     }
@@ -955,7 +1234,7 @@ mod tests {
     }
 
     #[test]
-    fn iter() {
+    fn test_iter() {
         // flat tree
         let tree = new_flat_tree();
         let mut iter = tree.iter(Order::In);
@@ -1059,6 +1338,126 @@ mod tests {
         let mut iter = tree.iter(Order::Level);
         for i in 1..=25 {
             assert_eq!(iter.next(), Some(&i))
+        }
+        assert_eq!(iter.next(), None);
+    }
+
+    #[test]
+    fn test_into_iter() {
+        // flat tree
+        let tree = new_flat_tree();
+        let mut iter = tree.into_iter(Order::In);
+        for i in 1..=15 {
+            assert_eq!(iter.next(), Some(i));
+        }
+        assert_eq!(iter.next(), None);
+
+        let tree = new_flat_tree();
+        let mut iter = tree.into_iter(Order::Pre);
+        for i in [8, 4, 2, 1, 3, 6, 5, 7, 12, 10, 9, 11, 14, 13, 15] {
+            assert_eq!(iter.next(), Some(i));
+        }
+        assert_eq!(iter.next(), None);
+
+        let tree = new_flat_tree();
+        let mut iter = tree.into_iter(Order::Post);
+        for i in [1, 3, 2, 5, 7, 6, 4, 9, 11, 10, 13, 15, 14, 12, 8] {
+            assert_eq!(iter.next(), Some(i));
+        }
+        assert_eq!(iter.next(), None);
+
+        let tree = new_flat_tree();
+        let mut iter = tree.into_iter(Order::Level);
+        for i in [8, 4, 12, 2, 6, 10, 14, 1, 3, 5, 7, 9, 11, 13, 15] {
+            assert_eq!(iter.next(), Some(i));
+        }
+
+        /* Shape
+         *              8
+         *           /     \
+         *         4        12
+         *      /     \   /     \
+         *     2      7  9        15
+         *    / \    /    \      / \
+         *   1  3   6     10    14 16
+         *  /      /       \    /
+         * 0      5        11 13
+         */
+        // jagged tree
+        let tree = new_jagged_tree();
+        let mut iter = tree.into_iter(Order::In);
+        for i in 0..=16 {
+            assert_eq!(iter.next(), Some(i));
+        }
+        assert_eq!(iter.next(), None);
+        let tree = new_jagged_tree();
+        let mut iter = tree.into_iter(Order::Pre);
+        for i in [8, 4, 2, 1, 0, 3, 7, 6, 5, 12, 9, 10, 11, 15, 14, 13, 16] {
+            assert_eq!(iter.next(), Some(i));
+        }
+        assert_eq!(iter.next(), None);
+        let tree = new_jagged_tree();
+        let mut iter = tree.into_iter(Order::Post);
+        for i in [0, 1, 3, 2, 5, 6, 7, 4, 11, 10, 9, 13, 14, 16, 15, 12, 8] {
+            assert_eq!(iter.next(), Some(i));
+        }
+        assert_eq!(iter.next(), None);
+        let tree = new_jagged_tree();
+        let mut iter = tree.into_iter(Order::Level);
+        for i in [8, 4, 12, 2, 7, 9, 15, 1, 3, 6, 10, 14, 16, 0, 5, 11, 13] {
+            assert_eq!(iter.next(), Some(i));
+        }
+        assert_eq!(iter.next(), None);
+
+        // left-only tree
+        let tree = new_left_only_tree();
+        let mut iter = tree.into_iter(Order::In);
+        for i in 1..=20 {
+            assert_eq!(iter.next(), Some(i))
+        }
+        assert_eq!(iter.next(), None);
+        let tree = new_left_only_tree();
+        let mut iter = tree.into_iter(Order::Pre);
+        for i in (1..=20).rev() {
+            assert_eq!(iter.next(), Some(i))
+        }
+        assert_eq!(iter.next(), None);
+        let tree = new_left_only_tree();
+        let mut iter = tree.into_iter(Order::Post);
+        for i in 1..=20 {
+            assert_eq!(iter.next(), Some(i))
+        }
+        assert_eq!(iter.next(), None);
+        let tree = new_left_only_tree();
+        let mut iter = tree.into_iter(Order::Level);
+        for i in (1..=20).rev() {
+            assert_eq!(iter.next(), Some(i))
+        }
+        assert_eq!(iter.next(), None);
+
+        // right-only tree
+        let tree = new_right_only_tree();
+        let mut iter = tree.into_iter(Order::In);
+        for i in 1..=25 {
+            assert_eq!(iter.next(), Some(i))
+        }
+        assert_eq!(iter.next(), None);
+        let tree = new_right_only_tree();
+        let mut iter = tree.into_iter(Order::Pre);
+        for i in 1..=25 {
+            assert_eq!(iter.next(), Some(i))
+        }
+        assert_eq!(iter.next(), None);
+        let tree = new_right_only_tree();
+        let mut iter = tree.into_iter(Order::Post);
+        for i in (1..=25).rev() {
+            assert_eq!(iter.next(), Some(i))
+        }
+        assert_eq!(iter.next(), None);
+        let tree = new_right_only_tree();
+        let mut iter = tree.into_iter(Order::Level);
+        for i in 1..=25 {
+            assert_eq!(iter.next(), Some(i))
         }
         assert_eq!(iter.next(), None);
     }
