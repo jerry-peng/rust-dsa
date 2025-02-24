@@ -597,12 +597,12 @@ where
 
     fn post_order_next(&mut self) -> Option<&'a T> {
         // self.nodes is a stack in this iterator
+        // In post-order traversal, each nodes's item must be returned after
+        // item's right subtree has been processed.
+        // To signal that a node's right subtree is not processed, we use stack
+        // push order, by pushing right child before parent node, which results
+        // in parent node being popped before right right child.
         loop {
-            // in post-order traversal, each nodes's item must be returned after
-            // item's right subtree has been processed, which can be signaled using
-            // stack push order, by storing right child before current node, which
-            // results in current node being popped before right child.
-
             // if curr is Some:
             // - traverse left
             // - for each node:
@@ -623,7 +623,6 @@ where
                 // - pop the right child off stack and assign it to curr
                 // - re-push front (the parent node) and continue this loop iteration,
                 // and the traversal loop above can process right child node
-                // - ass
                 if let Some(front_right) = front.right.0.as_ref() {
                     if let Some(second_front) = self.nodes.front() {
                         if front_right.item == second_front.item {
@@ -869,17 +868,17 @@ mod tests {
     fn test_new() {
         // new()
         let tree: BinarySearchTree<i32> = BinarySearchTree::new();
-        assert_eq!(tree.size, 0);
+        assert_eq!(tree.size(), 0);
         assert!(tree.is_empty());
         let tree: BinarySearchTree<String> = BinarySearchTree::new();
-        assert_eq!(tree.size, 0);
+        assert_eq!(tree.size(), 0);
         assert!(tree.is_empty());
         // default()
         let tree: BinarySearchTree<i32> = BinarySearchTree::default();
-        assert_eq!(tree.size, 0);
+        assert_eq!(tree.size(), 0);
         assert!(tree.is_empty());
         let tree: BinarySearchTree<String> = BinarySearchTree::default();
-        assert_eq!(tree.size, 0);
+        assert_eq!(tree.size(), 0);
         assert!(tree.is_empty());
     }
 
@@ -938,7 +937,7 @@ mod tests {
             let err = tree.insert(item);
             assert_eq!(err, Err(DuplicateItem));
             assert!(tree.contains(&item));
-            assert_eq!(tree.size, 15);
+            assert_eq!(tree.size(), 15);
             assert!(!tree.is_empty());
         }
 
@@ -955,7 +954,7 @@ mod tests {
             let err = tree.insert(item);
             assert_eq!(err, Err(DuplicateItem));
             assert!(tree.contains(&item));
-            assert_eq!(tree.size, 15);
+            assert_eq!(tree.size(), 15);
             assert!(!tree.is_empty());
         }
     }
@@ -968,7 +967,7 @@ mod tests {
             assert!(!tree.contains(&i));
             assert_eq!(tree.remove(&i), None);
             assert!(!tree.contains(&i));
-            assert_eq!(tree.size, 15);
+            assert_eq!(tree.size(), 15);
             assert!(!tree.is_empty());
         }
         for i in 1..=15 {
@@ -976,7 +975,7 @@ mod tests {
             assert!(tree.contains(&i));
             assert_eq!(tree.min(), Some(&i));
             assert_eq!(tree.remove(&i), Some(i));
-            assert_eq!(tree.size, (15 - i).try_into().unwrap());
+            assert_eq!(tree.size(), (15 - i).try_into().unwrap());
             assert!(!tree.contains(&i));
         }
         assert!(tree.is_empty());
@@ -984,7 +983,7 @@ mod tests {
             assert!(!tree.contains(&i));
             assert_eq!(tree.remove(&i), None);
             assert!(!tree.contains(&i));
-            assert_eq!(tree.size, 0);
+            assert_eq!(tree.size(), 0);
             assert!(tree.is_empty());
         }
         // flat tree remove in reverse order
@@ -993,7 +992,7 @@ mod tests {
             assert!(!tree.contains(&i));
             assert_eq!(tree.remove(&i), None);
             assert!(!tree.contains(&i));
-            assert_eq!(tree.size, 15);
+            assert_eq!(tree.size(), 15);
             assert!(!tree.is_empty());
         }
         for i in (1..=15).rev() {
@@ -1001,7 +1000,7 @@ mod tests {
             assert!(tree.contains(&i));
             assert_eq!(tree.max(), Some(&i));
             assert_eq!(tree.remove(&i), Some(i));
-            assert_eq!(tree.size, (i - 1).try_into().unwrap());
+            assert_eq!(tree.size(), (i - 1).try_into().unwrap());
             assert!(!tree.contains(&i));
         }
         assert!(tree.is_empty());
@@ -1009,7 +1008,7 @@ mod tests {
             assert!(!tree.contains(&i));
             assert_eq!(tree.remove(&i), None);
             assert!(!tree.contains(&i));
-            assert_eq!(tree.size, 0);
+            assert_eq!(tree.size(), 0);
             assert!(tree.is_empty());
         }
         // flat tree remove in insert order
@@ -1018,7 +1017,7 @@ mod tests {
             assert!(!tree.is_empty());
             assert!(tree.contains(item));
             assert_eq!(tree.remove(item), Some(*item));
-            assert_eq!(tree.size, 14 - index);
+            assert_eq!(tree.size(), 14 - index);
             assert!(!tree.contains(item));
         }
         assert!(tree.is_empty());
@@ -1029,7 +1028,7 @@ mod tests {
             assert!(!tree.contains(&i));
             assert_eq!(tree.remove(&i), None);
             assert!(!tree.contains(&i));
-            assert_eq!(tree.size, 17);
+            assert_eq!(tree.size(), 17);
             assert!(!tree.is_empty());
         }
         for i in 0..=16 {
@@ -1037,7 +1036,7 @@ mod tests {
             assert!(tree.contains(&i));
             assert_eq!(tree.min(), Some(&i));
             assert_eq!(tree.remove(&i), Some(i));
-            assert_eq!(tree.size, (16 - i).try_into().unwrap());
+            assert_eq!(tree.size(), (16 - i).try_into().unwrap());
             assert!(!tree.contains(&i));
         }
         assert!(tree.is_empty());
@@ -1045,7 +1044,7 @@ mod tests {
             assert!(!tree.contains(&i));
             assert_eq!(tree.remove(&i), None);
             assert!(!tree.contains(&i));
-            assert_eq!(tree.size, 0);
+            assert_eq!(tree.size(), 0);
             assert!(tree.is_empty());
         }
         // jagged tree remove in reverse order
@@ -1054,7 +1053,7 @@ mod tests {
             assert!(!tree.contains(&i));
             assert_eq!(tree.remove(&i), None);
             assert!(!tree.contains(&i));
-            assert_eq!(tree.size, 17);
+            assert_eq!(tree.size(), 17);
             assert!(!tree.is_empty());
         }
         for i in (0..=16).rev() {
@@ -1062,7 +1061,7 @@ mod tests {
             assert!(tree.contains(&i));
             assert_eq!(tree.max(), Some(&i));
             assert_eq!(tree.remove(&i), Some(i));
-            assert_eq!(tree.size, i.try_into().unwrap());
+            assert_eq!(tree.size(), i.try_into().unwrap());
             assert!(!tree.contains(&i));
         }
         assert!(tree.is_empty());
@@ -1070,7 +1069,7 @@ mod tests {
             assert!(!tree.contains(&i));
             assert_eq!(tree.remove(&i), None);
             assert!(!tree.contains(&i));
-            assert_eq!(tree.size, 0);
+            assert_eq!(tree.size(), 0);
             assert!(tree.is_empty());
         }
         // jagged tree remove in insert order
@@ -1079,7 +1078,7 @@ mod tests {
             assert!(!tree.is_empty());
             assert!(tree.contains(item));
             assert_eq!(tree.remove(item), Some(*item));
-            assert_eq!(tree.size, 16 - index);
+            assert_eq!(tree.size(), 16 - index);
             assert!(!tree.contains(item));
         }
         assert!(tree.is_empty());
@@ -1091,7 +1090,7 @@ mod tests {
             assert!(tree.contains(&i));
             assert_eq!(tree.min(), Some(&i));
             assert_eq!(tree.remove(&i), Some(i));
-            assert_eq!(tree.size, (20 - i).try_into().unwrap());
+            assert_eq!(tree.size(), (20 - i).try_into().unwrap());
             assert!(!tree.contains(&i));
         }
         assert!(tree.is_empty());
@@ -1102,7 +1101,7 @@ mod tests {
             assert!(tree.contains(&i));
             assert_eq!(tree.max(), Some(&i));
             assert_eq!(tree.remove(&i), Some(i));
-            assert_eq!(tree.size, (i - 1).try_into().unwrap());
+            assert_eq!(tree.size(), (i - 1).try_into().unwrap());
             assert!(!tree.contains(&i));
         }
         assert!(tree.is_empty());
@@ -1114,7 +1113,7 @@ mod tests {
             assert!(tree.contains(&i));
             assert_eq!(tree.min(), Some(&i));
             assert_eq!(tree.remove(&i), Some(i));
-            assert_eq!(tree.size, (25 - i).try_into().unwrap());
+            assert_eq!(tree.size(), (25 - i).try_into().unwrap());
             assert!(!tree.contains(&i));
         }
         assert!(tree.is_empty());
@@ -1125,7 +1124,7 @@ mod tests {
             assert!(tree.contains(&i));
             assert_eq!(tree.max(), Some(&i));
             assert_eq!(tree.remove(&i), Some(i));
-            assert_eq!(tree.size, (i - 1).try_into().unwrap());
+            assert_eq!(tree.size(), (i - 1).try_into().unwrap());
             assert!(!tree.contains(&i));
         }
         assert!(tree.is_empty());
