@@ -400,31 +400,31 @@ impl<T: Ord + Debug> BinarySearchTree<T> {
     ///  *  2   5
     ///  * 1   4
     ///  */
-    /// use dsa::binary_search_tree::{BinarySearchTree, Order};
+    /// use dsa::binary_search_tree::{BinarySearchTree, TraversalOrder};
     /// let mut tree: BinarySearchTree<i32> = BinarySearchTree::new();
     /// for i in [3, 2, 1, 5, 4] {
     ///     tree.insert(i);
     /// }
     ///
-    /// let mut iter = tree.iter(Order::In);
+    /// let mut iter = tree.iter(TraversalOrder::In);
     /// for i in 1..=5 {
     ///     assert_eq!(iter.next(), Some(&i));
     /// }
     /// assert_eq!(iter.next(), None);
     ///
-    /// let mut iter = tree.iter(Order::Pre);
+    /// let mut iter = tree.iter(TraversalOrder::Pre);
     /// for i in [3, 2, 1, 5, 4] {
     ///     assert_eq!(iter.next(), Some(&i));
     /// }
     /// assert_eq!(iter.next(), None);
     ///
-    /// let mut iter = tree.iter(Order::Post);
+    /// let mut iter = tree.iter(TraversalOrder::Post);
     /// for i in [1, 2, 4, 5, 3] {
     ///     assert_eq!(iter.next(), Some(&i));
     /// }
     /// assert_eq!(iter.next(), None);
     ///
-    /// let mut iter = tree.iter(Order::Level);
+    /// let mut iter = tree.iter(TraversalOrder::Level);
     /// for i in [3, 2, 5, 1, 4] {
     ///     assert_eq!(iter.next(), Some(&i));
     /// }
@@ -448,12 +448,12 @@ impl<T: Ord + Debug> BinarySearchTree<T> {
     ///  *  2   5
     ///  * 1   4
     ///  */
-    /// use dsa::binary_search_tree::{BinarySearchTree, Order};
+    /// use dsa::binary_search_tree::{BinarySearchTree, TraversalOrder};
     /// let mut tree: BinarySearchTree<i32> = BinarySearchTree::new();
     /// for i in [3, 2, 1, 5, 4] {
     ///     tree.insert(i);
     /// }
-    /// let mut iter = tree.into_iter(Order::In);
+    /// let mut iter = tree.into_iter(TraversalOrder::In);
     /// for i in 1..=5 {
     ///     assert_eq!(iter.next(), Some(i));
     /// }
@@ -463,7 +463,7 @@ impl<T: Ord + Debug> BinarySearchTree<T> {
     /// for i in [3, 2, 1, 5, 4] {
     ///     tree.insert(i);
     /// }
-    /// let mut iter = tree.into_iter(Order::Pre);
+    /// let mut iter = tree.into_iter(TraversalOrder::Pre);
     /// for i in [3, 2, 1, 5, 4] {
     ///     assert_eq!(iter.next(), Some(i));
     /// }
@@ -473,7 +473,7 @@ impl<T: Ord + Debug> BinarySearchTree<T> {
     /// for i in [3, 2, 1, 5, 4] {
     ///     tree.insert(i);
     /// }
-    /// let mut iter = tree.into_iter(Order::Post);
+    /// let mut iter = tree.into_iter(TraversalOrder::Post);
     /// for i in [1, 2, 4, 5, 3] {
     ///     assert_eq!(iter.next(), Some(i));
     /// }
@@ -483,7 +483,7 @@ impl<T: Ord + Debug> BinarySearchTree<T> {
     /// for i in [3, 2, 1, 5, 4] {
     ///     tree.insert(i);
     /// }
-    /// let mut iter = tree.into_iter(Order::Level);
+    /// let mut iter = tree.into_iter(TraversalOrder::Level);
     /// for i in [3, 2, 5, 1, 4] {
     ///     assert_eq!(iter.next(), Some(i));
     /// }
