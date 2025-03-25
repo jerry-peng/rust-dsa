@@ -958,6 +958,12 @@ mod tests {
         }
     }
 
+    fn read_json_data(filepath: &str) -> Value {
+        let insert_order_json_string =
+            fs::read_to_string(path::Path::new(filepath)).expect("Unable to read file");
+        serde_json::from_str(insert_order_json_string.as_str()).unwrap()
+    }
+
     #[test]
     fn test_new() {
         // new()
@@ -1021,13 +1027,10 @@ mod tests {
 
     #[test]
     fn test_insert() {
-        let insert_order_json_string =
-            fs::read_to_string(path::Path::new("./test/rbtree_insert_orders.json"))
-                .expect("Unable to read file");
-        let insert_orders: Value = serde_json::from_str(insert_order_json_string.as_str()).unwrap();
+        let order_data = read_json_data("./unit_test_data/rbtree_insert_orders.json");
 
         // right-lean tree insert
-        let expected_orders = &insert_orders["right_lean"];
+        let expected_orders = &order_data["right_lean"];
         let mut tree: RedBlackTree<i32> = RedBlackTree::new();
         for i in 1..=20 {
             let _ = tree.insert(i);
@@ -1039,7 +1042,7 @@ mod tests {
         }
 
         // left-lean tree insert
-        let expected_orders = &insert_orders["left_lean"];
+        let expected_orders = &order_data["left_lean"];
         let mut tree: RedBlackTree<i32> = RedBlackTree::new();
         for i in (1..=20).rev() {
             let _ = tree.insert(i);
@@ -1048,6 +1051,25 @@ mod tests {
             assert!(!tree.is_empty());
             validate_integrity(&tree);
             validate_order(&tree, &expected_orders[usize::try_from(20 - i).unwrap()]);
+        }
+
+        // mid-lean tree insert
+        let expected_orders = &order_data["mid_lean"];
+        let mut tree: RedBlackTree<i32> = RedBlackTree::new();
+        for i in 1..=10 {
+            let _ = tree.insert(i);
+            assert!(tree.contains(&i));
+            assert_eq!(tree.size(), usize::try_from(2 * i - 1).unwrap());
+            assert!(!tree.is_empty());
+            validate_integrity(&tree);
+            validate_order(&tree, &expected_orders[usize::try_from(2 * i - 2).unwrap()]);
+
+            let _ = tree.insert(21 - i);
+            assert!(tree.contains(&i));
+            assert_eq!(tree.size(), usize::try_from(2 * i).unwrap());
+            assert!(!tree.is_empty());
+            validate_integrity(&tree);
+            validate_order(&tree, &expected_orders[usize::try_from(2 * i - 1).unwrap()]);
         }
     }
 

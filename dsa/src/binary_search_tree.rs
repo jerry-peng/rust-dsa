@@ -45,7 +45,7 @@ impl<T> Node<T> {
 }
 
 #[derive(Debug, PartialEq)]
-pub struct DuplicateItem;
+pub struct DuplicateItemErr;
 
 impl<T: Ord + Debug> Link<T> {
     /// Pop max node from sub-tree which link is pointing to
@@ -163,7 +163,7 @@ impl<T: Ord + Debug> BinarySearchTree<T> {
     /// assert!(tree.contains(&5));
     /// assert_eq!(tree.insert(5), Err(DuplicateItem));
     /// ```
-    pub fn insert(&mut self, item: T) -> Result<(), DuplicateItem> {
+    pub fn insert(&mut self, item: T) -> Result<(), DuplicateItemErr> {
         // if tree is empty (head points to None),
         // assign head to new node, else, assign
         // head to current node
@@ -185,7 +185,7 @@ impl<T: Ord + Debug> BinarySearchTree<T> {
             let child = match item.cmp(&curr.item) {
                 Ordering::Less => &mut curr.left.0,
                 Ordering::Greater => &mut curr.right.0,
-                Ordering::Equal => return Err(DuplicateItem),
+                Ordering::Equal => return Err(DuplicateItemErr),
             };
 
             if let Some(child) = child {
@@ -802,6 +802,10 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+    use serde_json::{self, Value};
+    use std::cmp::{max, min};
+    use std::fs;
+    use std::path;
 
     fn get_flat_tree_items() -> Vec<i32> {
         /* Shape
@@ -828,7 +832,7 @@ mod tests {
          *  /      /       \    /
          * 0      5        11 13
          */
-        vec![8, 4, 2, 1, 0, 3, 7, 6, 5, 12, 9, 10, 11, 15, 14, 13, 16]
+        vec![8, 4, 2, 1, 0, 12, 15, 16, 7, 6, 3, 5, 9, 10, 14, 11, 13]
     }
 
     fn new_flat_tree() -> BinarySearchTree<i32> {
@@ -863,6 +867,61 @@ mod tests {
             tree.insert(i).unwrap();
         }
         tree
+    }
+
+    fn validate_bst(tree: &BinarySearchTree<i32>) {
+        // node, min, max
+        let min_val: Option<i32> = None;
+        let max_val: Option<i32> = None;
+        if tree.root.0.is_none() {
+            return;
+        }
+        let mut queue = vec![(tree.root.0.as_ref().unwrap(), min_val, max_val)];
+
+        while let Some(queue_item) = queue.pop() {
+            let node = queue_item.0;
+            let min_val = queue_item.1;
+            let max_val = queue_item.2;
+
+            match (min_val, max_val) {
+                (None, None) => {}
+                (None, Some(max)) => assert!(node.item < max),
+                (Some(min), None) => assert!(node.item > min),
+                (Some(min), Some(max)) => assert!(node.item > min && node.item < max),
+            }
+
+            if let Some(node) = node.left.0.as_ref() {
+                queue.push((node, min_val, max_val.map(|val| max(val, node.item))));
+            }
+            if let Some(node) = node.right.0.as_ref() {
+                queue.push((node, min_val.map(|val| min(val, node.item)), max_val));
+            }
+        }
+    }
+
+    fn read_json_data(filepath: &str) -> Value {
+        let insert_order_json_string =
+            fs::read_to_string(path::Path::new(filepath)).expect("Unable to read file");
+        serde_json::from_str(insert_order_json_string.as_str()).unwrap()
+    }
+
+    fn validate_order(tree: &BinarySearchTree<i32>, expected_orders: &Value) {
+        let order_types = vec![
+            (TraversalOrder::Level, "level"),
+            (TraversalOrder::In, "in"),
+            (TraversalOrder::Pre, "pre"),
+            (TraversalOrder::Post, "post"),
+        ];
+        for order_type in order_types {
+            let actual_order: Vec<i32> = tree.iter(order_type.0).copied().collect();
+            let expected_order: Vec<i32> = expected_orders[order_type.1]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|i| i32::try_from(i.as_i64().unwrap()).unwrap())
+                .collect();
+            assert_eq!(actual_order, expected_order);
+        }
     }
 
     #[test]
@@ -925,44 +984,208 @@ mod tests {
 
     #[test]
     fn test_insert() {
+        let order_data = read_json_data("./unit_test_data/bst_insert_orders.json");
+
         // flat tree insert
+        let expected_orders = &order_data["flat"];
         let mut tree: BinarySearchTree<i32> = BinarySearchTree::new();
+        validate_bst(&tree);
         for (index, item) in get_flat_tree_items().iter().enumerate() {
             tree.insert(*item).unwrap();
             assert!(tree.contains(item));
             assert_eq!(tree.size(), index + 1);
             assert!(!tree.is_empty());
+            validate_bst(&tree);
+            validate_order(&tree, &expected_orders[index]);
         }
         // flat tree insert duplicate
         for item in get_flat_tree_items() {
             let err = tree.insert(item);
-            assert_eq!(err, Err(DuplicateItem));
+            assert_eq!(err, Err(DuplicateItemErr));
             assert!(tree.contains(&item));
             assert_eq!(tree.size(), 15);
             assert!(!tree.is_empty());
+            validate_bst(&tree);
+            validate_order(&tree, &expected_orders[14]);
         }
 
         // jagged tree insert
+        let expected_orders = &order_data["jagged"];
         let mut tree: BinarySearchTree<i32> = BinarySearchTree::new();
-        for (index, item) in get_flat_tree_items().iter().enumerate() {
+        validate_bst(&tree);
+        for (index, item) in get_jagged_tree_items().iter().enumerate() {
             tree.insert(*item).unwrap();
             assert!(tree.contains(item));
             assert_eq!(tree.size(), index + 1);
             assert!(!tree.is_empty());
+            validate_bst(&tree);
+            validate_order(&tree, &expected_orders[index]);
         }
         // jagged tree insert duplicate
         for item in get_flat_tree_items() {
             let err = tree.insert(item);
-            assert_eq!(err, Err(DuplicateItem));
+            assert_eq!(err, Err(DuplicateItemErr));
             assert!(tree.contains(&item));
-            assert_eq!(tree.size(), 15);
+            assert_eq!(tree.size(), 17);
             assert!(!tree.is_empty());
+            validate_bst(&tree);
+            validate_order(&tree, &expected_orders[16]);
+        }
+
+        // left-only tree insert
+        let expected_orders = &order_data["left_only"];
+        let mut tree: BinarySearchTree<i32> = BinarySearchTree::new();
+        for i in (1..=20).rev() {
+            tree.insert(i).unwrap();
+            assert!(tree.contains(&i));
+            assert_eq!(tree.size(), usize::try_from(21 - i).unwrap());
+            assert!(!tree.is_empty());
+            validate_bst(&tree);
+            validate_order(&tree, &expected_orders[usize::try_from(20 - i).unwrap()]);
+        }
+        for i in 1..=20 {
+            let err = tree.insert(i);
+            assert_eq!(err, Err(DuplicateItemErr));
+            assert!(tree.contains(&i));
+            assert_eq!(tree.size(), 20);
+            assert!(!tree.is_empty());
+            validate_bst(&tree);
+            validate_order(&tree, &expected_orders[19]);
+        }
+
+        // right-only tree insert
+        let expected_orders = &order_data["right_only"];
+        let mut tree: BinarySearchTree<i32> = BinarySearchTree::new();
+        for i in 1..=25 {
+            tree.insert(i).unwrap();
+            assert!(tree.contains(&i));
+            assert_eq!(tree.size(), usize::try_from(i).unwrap());
+            assert!(!tree.is_empty());
+            validate_bst(&tree);
+            validate_order(&tree, &expected_orders[usize::try_from(i - 1).unwrap()]);
+        }
+        for i in 1..=25 {
+            let err = tree.insert(i);
+            assert_eq!(err, Err(DuplicateItemErr));
+            assert!(tree.contains(&i));
+            assert_eq!(tree.size(), 25);
+            assert!(!tree.is_empty());
+            validate_bst(&tree);
+            validate_order(&tree, &expected_orders[24]);
         }
     }
 
     #[test]
-    fn test_remove() {
-        // flat tree remove in order
+    fn test_remove_single_item() {
+        let order_data = read_json_data("./unit_test_data/bst_remove_orders.json");
+
+        // flat tree
+        let expected_orders = &order_data["flat"];
+        for i in 1..=15 {
+            let mut tree = new_flat_tree();
+            assert!(!tree.is_empty());
+            assert!(tree.contains(&i));
+            assert_eq!(tree.remove(&i), Some(i));
+            assert_eq!(tree.size(), usize::try_from(14).unwrap());
+            assert!(!tree.contains(&i));
+            assert!(!tree.is_empty());
+            validate_bst(&tree);
+            validate_order(&tree, &expected_orders[usize::try_from(i - 1).unwrap()]);
+        }
+
+        // jagged tree
+        let expected_orders = &order_data["jagged"];
+        for i in 0..=16 {
+            let mut tree = new_jagged_tree();
+            assert!(!tree.is_empty());
+            assert!(tree.contains(&i));
+            assert_eq!(tree.remove(&i), Some(i));
+            assert_eq!(tree.size(), usize::try_from(16).unwrap());
+            assert!(!tree.contains(&i));
+            assert!(!tree.is_empty());
+            validate_bst(&tree);
+            validate_order(&tree, &expected_orders[usize::try_from(i).unwrap()]);
+        }
+
+        // left-only tree
+        let expected_orders = &order_data["left_only"];
+        for i in 1..=20 {
+            let mut tree = new_left_only_tree();
+            assert!(!tree.is_empty());
+            assert!(tree.contains(&i));
+            assert_eq!(tree.remove(&i), Some(i));
+            assert_eq!(tree.size(), usize::try_from(19).unwrap());
+            assert!(!tree.contains(&i));
+            assert!(!tree.is_empty());
+            validate_bst(&tree);
+            validate_order(&tree, &expected_orders[usize::try_from(i - 1).unwrap()]);
+        }
+
+        // right-only tree
+        let expected_orders = &order_data["right_only"];
+        for i in 1..=25 {
+            let mut tree = new_right_only_tree();
+            assert!(!tree.is_empty());
+            assert!(tree.contains(&i));
+            assert_eq!(tree.remove(&i), Some(i));
+            assert_eq!(tree.size(), usize::try_from(24).unwrap());
+            assert!(!tree.contains(&i));
+            assert!(!tree.is_empty());
+            validate_bst(&tree);
+            validate_order(&tree, &expected_orders[usize::try_from(i - 1).unwrap()]);
+        }
+    }
+
+    #[test]
+    fn test_remove_in_insert_order() {
+        // flat tree
+        let mut tree = new_flat_tree();
+        for (index, item) in get_flat_tree_items().iter().enumerate() {
+            assert!(!tree.is_empty());
+            assert!(tree.contains(item));
+            assert_eq!(tree.remove(item), Some(*item));
+            assert_eq!(tree.size(), 14 - index);
+            assert!(!tree.contains(item));
+        }
+        assert!(tree.is_empty());
+
+        // jagged tree
+        let mut tree = new_jagged_tree();
+        for (index, item) in get_jagged_tree_items().iter().enumerate() {
+            assert!(!tree.is_empty());
+            assert!(tree.contains(item));
+            assert_eq!(tree.remove(item), Some(*item));
+            assert_eq!(tree.size(), 16 - index);
+            assert!(!tree.contains(item));
+        }
+        assert!(tree.is_empty());
+
+        // left-only tree
+        let mut tree = new_left_only_tree();
+        for i in (1..=20).rev() {
+            assert!(!tree.is_empty());
+            assert!(tree.contains(&i));
+            assert_eq!(tree.remove(&i), Some(i));
+            assert_eq!(tree.size(), usize::try_from(i - 1).unwrap());
+            assert!(!tree.contains(&i));
+        }
+        assert!(tree.is_empty());
+
+        // right-only tree
+        let mut tree = new_right_only_tree();
+        for i in 1..=25 {
+            assert!(!tree.is_empty());
+            assert!(tree.contains(&i));
+            assert_eq!(tree.remove(&i), Some(i));
+            assert_eq!(tree.size(), usize::try_from(25 - i).unwrap());
+            assert!(!tree.contains(&i));
+        }
+        assert!(tree.is_empty());
+    }
+
+    #[test]
+    fn test_remove_in_order() {
+        // flat tree
         let mut tree = new_flat_tree();
         for i in -5..=0 {
             assert!(!tree.contains(&i));
@@ -987,43 +1210,8 @@ mod tests {
             assert_eq!(tree.size(), 0);
             assert!(tree.is_empty());
         }
-        // flat tree remove in reverse order
-        let mut tree = new_flat_tree();
-        for i in (16..=20).rev() {
-            assert!(!tree.contains(&i));
-            assert_eq!(tree.remove(&i), None);
-            assert!(!tree.contains(&i));
-            assert_eq!(tree.size(), 15);
-            assert!(!tree.is_empty());
-        }
-        for i in (1..=15).rev() {
-            assert!(!tree.is_empty());
-            assert!(tree.contains(&i));
-            assert_eq!(tree.max(), Some(&i));
-            assert_eq!(tree.remove(&i), Some(i));
-            assert_eq!(tree.size(), usize::try_from(i - 1).unwrap());
-            assert!(!tree.contains(&i));
-        }
-        assert!(tree.is_empty());
-        for i in (-5..=0).rev() {
-            assert!(!tree.contains(&i));
-            assert_eq!(tree.remove(&i), None);
-            assert!(!tree.contains(&i));
-            assert_eq!(tree.size(), 0);
-            assert!(tree.is_empty());
-        }
-        // flat tree remove in insert order
-        let mut tree = new_flat_tree();
-        for (index, item) in get_flat_tree_items().iter().enumerate() {
-            assert!(!tree.is_empty());
-            assert!(tree.contains(item));
-            assert_eq!(tree.remove(item), Some(*item));
-            assert_eq!(tree.size(), 14 - index);
-            assert!(!tree.contains(item));
-        }
-        assert!(tree.is_empty());
 
-        // jagged tree remove in order
+        // jagged tree
         let mut tree = new_jagged_tree();
         for i in -5..=-1 {
             assert!(!tree.contains(&i));
@@ -1048,7 +1236,89 @@ mod tests {
             assert_eq!(tree.size(), 0);
             assert!(tree.is_empty());
         }
-        // jagged tree remove in reverse order
+
+        // left-only tree
+        let mut tree = new_left_only_tree();
+        for i in -5..=0 {
+            assert!(!tree.contains(&i));
+            assert_eq!(tree.remove(&i), None);
+            assert!(!tree.contains(&i));
+            assert_eq!(tree.size(), 20);
+            assert!(!tree.is_empty());
+        }
+        for i in 1..=20 {
+            assert!(!tree.is_empty());
+            assert!(tree.contains(&i));
+            assert_eq!(tree.min(), Some(&i));
+            assert_eq!(tree.remove(&i), Some(i));
+            assert_eq!(tree.size(), usize::try_from(20 - i).unwrap());
+            assert!(!tree.contains(&i));
+        }
+        assert!(tree.is_empty());
+        for i in 21..=25 {
+            assert!(!tree.contains(&i));
+            assert_eq!(tree.remove(&i), None);
+            assert!(!tree.contains(&i));
+            assert_eq!(tree.size(), 0);
+            assert!(tree.is_empty());
+        }
+
+        // right-only tree
+        let mut tree = new_right_only_tree();
+        for i in -5..=0 {
+            assert!(!tree.contains(&i));
+            assert_eq!(tree.remove(&i), None);
+            assert!(!tree.contains(&i));
+            assert_eq!(tree.size(), 25);
+            assert!(!tree.is_empty());
+        }
+        for i in 1..=25 {
+            assert!(!tree.is_empty());
+            assert!(tree.contains(&i));
+            assert_eq!(tree.min(), Some(&i));
+            assert_eq!(tree.remove(&i), Some(i));
+            assert_eq!(tree.size(), usize::try_from(25 - i).unwrap());
+            assert!(!tree.contains(&i));
+        }
+        assert!(tree.is_empty());
+        for i in 26..=30 {
+            assert!(!tree.contains(&i));
+            assert_eq!(tree.remove(&i), None);
+            assert!(!tree.contains(&i));
+            assert_eq!(tree.size(), 0);
+            assert!(tree.is_empty());
+        }
+    }
+
+    #[test]
+    fn test_remove_in_reverse_order() {
+        // flat tree
+        let mut tree = new_flat_tree();
+        for i in (16..=20).rev() {
+            assert!(!tree.contains(&i));
+            assert_eq!(tree.remove(&i), None);
+            assert!(!tree.contains(&i));
+            assert_eq!(tree.size(), 15);
+            assert!(!tree.is_empty());
+        }
+        for i in (1..=15).rev() {
+            assert!(!tree.is_empty());
+            assert!(tree.contains(&i));
+            assert_eq!(tree.max(), Some(&i));
+            assert_eq!(tree.remove(&i), Some(i));
+            assert_eq!(tree.size(), usize::try_from(i - 1).unwrap());
+            assert!(!tree.contains(&i));
+        }
+        assert!(tree.is_empty());
+        for i in (-5..=0).rev() {
+            assert!(!tree.contains(&i));
+            assert_eq!(tree.remove(&i), None);
+            assert!(!tree.contains(&i));
+            assert_eq!(tree.size(), 0);
+            assert!(tree.is_empty());
+        }
+
+        // jagged tree
         let mut tree = new_jagged_tree();
         for i in (17..=20).rev() {
             assert!(!tree.contains(&i));
@@ -1073,30 +1343,16 @@ mod tests {
             assert_eq!(tree.size(), 0);
             assert!(tree.is_empty());
         }
-        // jagged tree remove in insert order
-        let mut tree = new_jagged_tree();
-        for (index, item) in get_jagged_tree_items().iter().enumerate() {
-            assert!(!tree.is_empty());
-            assert!(tree.contains(item));
-            assert_eq!(tree.remove(item), Some(*item));
-            assert_eq!(tree.size(), 16 - index);
-            assert!(!tree.contains(item));
-        }
-        assert!(tree.is_empty());
 
-        // left-only tree remove in order
+        // left-only tree
         let mut tree = new_left_only_tree();
-        for i in 1..=20 {
-            assert!(!tree.is_empty());
-            assert!(tree.contains(&i));
-            assert_eq!(tree.min(), Some(&i));
-            assert_eq!(tree.remove(&i), Some(i));
-            assert_eq!(tree.size(), usize::try_from(20 - i).unwrap());
+        for i in (21..=25).rev() {
             assert!(!tree.contains(&i));
+            assert_eq!(tree.remove(&i), None);
+            assert!(!tree.contains(&i));
+            assert_eq!(tree.size(), 20);
+            assert!(!tree.is_empty());
         }
-        assert!(tree.is_empty());
-        // left-only tree remove in reverse order
-        let mut tree = new_left_only_tree();
         for i in (1..=20).rev() {
             assert!(!tree.is_empty());
             assert!(tree.contains(&i));
@@ -1106,20 +1362,23 @@ mod tests {
             assert!(!tree.contains(&i));
         }
         assert!(tree.is_empty());
-
-        // right-only tree remove in order
-        let mut tree = new_right_only_tree();
-        for i in 1..=25 {
-            assert!(!tree.is_empty());
-            assert!(tree.contains(&i));
-            assert_eq!(tree.min(), Some(&i));
-            assert_eq!(tree.remove(&i), Some(i));
-            assert_eq!(tree.size(), usize::try_from(25 - i).unwrap());
+        for i in (-5..=-1).rev() {
             assert!(!tree.contains(&i));
+            assert_eq!(tree.remove(&i), None);
+            assert!(!tree.contains(&i));
+            assert_eq!(tree.size(), 0);
+            assert!(tree.is_empty());
         }
-        assert!(tree.is_empty());
-        // right-only tree remove in reverse order
+
+        // right-only tree
         let mut tree = new_right_only_tree();
+        for i in (26..=30).rev() {
+            assert!(!tree.contains(&i));
+            assert_eq!(tree.remove(&i), None);
+            assert!(!tree.contains(&i));
+            assert_eq!(tree.size(), 25);
+            assert!(!tree.is_empty());
+        }
         for i in (1..=25).rev() {
             assert!(!tree.is_empty());
             assert!(tree.contains(&i));
@@ -1129,6 +1388,13 @@ mod tests {
             assert!(!tree.contains(&i));
         }
         assert!(tree.is_empty());
+        for i in (-5..=-1).rev() {
+            assert!(!tree.contains(&i));
+            assert_eq!(tree.remove(&i), None);
+            assert!(!tree.contains(&i));
+            assert_eq!(tree.size(), 0);
+            assert!(tree.is_empty());
+        }
     }
 
     #[test]
