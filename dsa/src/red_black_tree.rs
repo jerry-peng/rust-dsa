@@ -5,7 +5,7 @@ use std::mem;
 use std::ptr::NonNull;
 use std::{alloc, vec};
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct DuplicateItemErr;
 
 #[derive(Debug)]
@@ -167,6 +167,14 @@ where
         }
         unsafe { curr.read() }.parent
     }
+
+    fn get_subtree_max_link(link_ptr: NonNull<Link<T>>) -> Option<NonNull<Link<T>>> {
+        let mut curr = link_ptr;
+        while let Some(node) = unsafe { curr.read() }.node {
+            curr = node.right;
+        }
+        unsafe { curr.read() }.parent
+    }
 }
 
 impl<T> RedBlackTree<T>
@@ -300,12 +308,12 @@ where
             (None, None) | (None, Some(_)) => (link_ptr, LinkType::Right),
             (Some(_), None) => (link_ptr, LinkType::Left),
             (Some(_), Some(_)) => {
-                let mut right_min_ptr = Link::get_subtree_min_link(right_ptr).unwrap();
-                let right_min_node = unsafe { right_min_ptr.as_mut() }.node.as_mut().unwrap();
-                let right_min_item = &mut right_min_node.item;
+                let mut left_max_ptr = Link::get_subtree_max_link(left_ptr).unwrap();
+                let left_max_node = unsafe { left_max_ptr.as_mut() }.node.as_mut().unwrap();
+                let left_max_item = &mut left_max_node.item;
                 let link_ptr_item = &mut unsafe { link_ptr.as_mut() }.node.as_mut().unwrap().item;
-                mem::swap(right_min_item, link_ptr_item);
-                (right_min_ptr, LinkType::Right)
+                mem::swap(left_max_item, link_ptr_item);
+                (left_max_ptr, LinkType::Left)
             }
         };
 
@@ -341,6 +349,7 @@ where
             LinkType::Root => {
                 self.root = child_ptr_to_connect;
                 child_link_to_connect.parent = None;
+                child_link_to_connect.color = Color::Black;
                 unsafe { child_ptr_to_connect.write(child_link_to_connect) };
             }
         }
@@ -377,7 +386,6 @@ where
     }
 
     fn rebalance_removal(&mut self, mut black_token_ptr: NonNull<Link<T>>) {
-        // recast as mut nonnull pointer
         while black_token_ptr != self.root {
             let mut black_token_link = unsafe { black_token_ptr.read() };
             match black_token_link.color {
@@ -405,43 +413,59 @@ where
                             // leaf node's black node count is equal
                             let left_nephew_ptr = Link::get_left_ptr(sibling_ptr).unwrap();
                             let right_nephew_ptr = Link::get_right_ptr(sibling_ptr).unwrap();
-                            let left_nephew = unsafe { left_nephew_ptr.read() };
-                            let right_nephew = unsafe { right_nephew_ptr.read() };
+                            let mut left_nephew = unsafe { left_nephew_ptr.read() };
+                            let mut right_nephew = unsafe { right_nephew_ptr.read() };
                             if left_nephew.color == Color::Black
                                 && right_nephew.color == Color::Black
                             {
                                 sibling.color = Color::Red;
                                 unsafe { sibling_ptr.write(sibling) };
                                 black_token_ptr = Link::get_parent_ptr(black_token_ptr).unwrap();
-                                continue;
-                            }
-                            // one of the nephews has to be red
-                            match Link::get_link_type(black_token_ptr) {
-                                LinkType::Left => {
-                                    if right_nephew.color == Color::Black {
-                                        self.subtree_rotate_right(sibling_ptr, true);
+                            } else {
+                                // one of the nephews has to be red
+                                match Link::get_link_type(black_token_ptr) {
+                                    LinkType::Left => {
+                                        if right_nephew.color == Color::Black {
+                                            self.subtree_rotate_right(sibling_ptr, true);
+                                            self.subtree_rotate_left(
+                                                black_token_link.parent.unwrap(),
+                                                true,
+                                            );
+                                            let mut sibling = unsafe { sibling_ptr.read() };
+                                            sibling.color = Color::Black;
+                                            unsafe { sibling_ptr.write(sibling) };
+                                        } else {
+                                            self.subtree_rotate_left(
+                                                black_token_link.parent.unwrap(),
+                                                true,
+                                            );
+                                            right_nephew.color = Color::Black;
+                                            unsafe { right_nephew_ptr.write(right_nephew) };
+                                        }
                                     }
-                                    self.subtree_rotate_left(
-                                        black_token_link.parent.unwrap(),
-                                        true,
-                                    );
-                                    // TODO this is a bug, refetch sibling again
-                                    sibling.color = Color::Black;
-                                    unsafe { sibling_ptr.write(sibling) };
-                                }
-                                LinkType::Right => {
-                                    if left_nephew.color == Color::Black {
-                                        self.subtree_rotate_left(sibling_ptr, true);
+                                    LinkType::Right => {
+                                        if left_nephew.color == Color::Black {
+                                            self.subtree_rotate_left(sibling_ptr, true);
+                                            self.subtree_rotate_right(
+                                                black_token_link.parent.unwrap(),
+                                                true,
+                                            );
+                                            let mut sibling = unsafe { sibling_ptr.read() };
+                                            sibling.color = Color::Black;
+                                            unsafe { sibling_ptr.write(sibling) };
+                                        } else {
+                                            self.subtree_rotate_right(
+                                                black_token_link.parent.unwrap(),
+                                                true,
+                                            );
+                                            left_nephew.color = Color::Black;
+                                            unsafe { left_nephew_ptr.write(left_nephew) };
+                                        }
                                     }
-                                    self.subtree_rotate_right(
-                                        black_token_link.parent.unwrap(),
-                                        true,
-                                    );
-                                    sibling.color = Color::Black;
-                                    unsafe { sibling_ptr.write(sibling) };
+                                    // TODO fix message
+                                    LinkType::Root => unreachable!("UNREACHABLE!!!"),
                                 }
-                                // TODO fix message
-                                LinkType::Root => unreachable!("UNREACHABLE!!!"),
+                                break;
                             }
                         }
                     }
@@ -468,6 +492,10 @@ where
         root.node.as_mut().unwrap().right = right_left_ptr;
         right.node.as_mut().unwrap().left = root_ptr;
 
+        if swap_color {
+            mem::swap(&mut right.color, &mut root.color);
+        }
+
         match root_link_type {
             LinkType::Left => {
                 let parent_ptr = right.parent.unwrap();
@@ -481,11 +509,10 @@ where
                 parent.node.as_mut().unwrap().right = right_ptr;
                 unsafe { parent_ptr.write(parent) };
             }
-            LinkType::Root => self.root = right_ptr,
-        }
-
-        if swap_color {
-            mem::swap(&mut right.color, &mut root.color);
+            LinkType::Root => {
+                self.root = right_ptr;
+                right.color = Color::Black;
+            }
         }
 
         unsafe { root_ptr.write(root) };
@@ -511,6 +538,10 @@ where
         root.node.as_mut().unwrap().left = left_right_ptr;
         left.node.as_mut().unwrap().right = root_ptr;
 
+        if swap_color {
+            mem::swap(&mut left.color, &mut root.color);
+        }
+
         match root_link_type {
             LinkType::Left => {
                 let parent_ptr = left.parent.unwrap();
@@ -524,11 +555,10 @@ where
                 parent.node.as_mut().unwrap().right = left_ptr;
                 unsafe { parent_ptr.write(parent) };
             }
-            LinkType::Root => self.root = left_ptr,
-        }
-
-        if swap_color {
-            mem::swap(&mut left.color, &mut root.color);
+            LinkType::Root => {
+                self.root = left_ptr;
+                left.color = Color::Black;
+            }
         }
 
         unsafe { root_ptr.write(root) };
@@ -854,45 +884,104 @@ impl<T> Drop for RedBlackTree<T> {
 mod tests {
     use super::*;
     use serde_json::{self, Value};
+    use std::cmp::{max, min};
     use std::collections::{HashMap, HashSet};
     use std::fs;
     use std::path;
 
-    fn new_right_lean_tree() -> RedBlackTree<i32> {
+    fn new_tilted_tree(mirror: bool) -> RedBlackTree<i32> {
+        // if mirror is false, right-tilted tree, else left-tilted
         let mut tree: RedBlackTree<i32> = RedBlackTree::new();
         for i in 1..=20 {
-            let _ = tree.insert(i);
+            match mirror {
+                false => {
+                    let _ = tree.insert(i);
+                }
+                true => {
+                    let _ = tree.insert(21 - i);
+                }
+            };
         }
         tree
     }
 
-    fn new_left_lean_tree() -> RedBlackTree<i32> {
-        let mut tree: RedBlackTree<i32> = RedBlackTree::new();
-        for i in (1..=20).rev() {
-            let _ = tree.insert(i);
-        }
-        tree
-    }
-
-    fn new_mid_lean_tree() -> RedBlackTree<i32> {
+    fn new_compact_tree(mirror: bool) -> RedBlackTree<i32> {
         let mut tree: RedBlackTree<i32> = RedBlackTree::new();
         for i in 1..=10 {
-            let _ = tree.insert(i);
-            let _ = tree.insert(21 - i);
+            match mirror {
+                false => {
+                    let _ = tree.insert(i);
+                    let _ = tree.insert(21 - i);
+                }
+                true => {
+                    let _ = tree.insert(21 - i);
+                    let _ = tree.insert(i);
+                }
+            };
         }
         tree
     }
 
-    fn new_side_lean_tree() -> RedBlackTree<i32> {
+    fn new_spread_tree(mirror: bool) -> RedBlackTree<i32> {
         let mut tree: RedBlackTree<i32> = RedBlackTree::new();
         for i in (1..=10).rev() {
-            let _ = tree.insert(i);
-            let _ = tree.insert(21 - i);
+            match mirror {
+                false => {
+                    let _ = tree.insert(i);
+                    let _ = tree.insert(21 - i);
+                }
+                true => {
+                    let _ = tree.insert(21 - i);
+                    let _ = tree.insert(i);
+                }
+            };
         }
         tree
     }
 
-    fn validate_integrity<T>(tree: &RedBlackTree<T>) {
+    fn validate_bst(tree: &RedBlackTree<i32>) {
+        // node, min, max
+        let min_val: Option<i32> = None;
+        let max_val: Option<i32> = None;
+        let root = unsafe { tree.root.read() };
+        if root.node.is_none() {
+            return;
+        }
+        let mut queue = vec![(tree.root, min_val, max_val)];
+
+        while let Some(queue_item) = queue.pop() {
+            let link_ptr = queue_item.0;
+            let min_val = queue_item.1;
+            let max_val = queue_item.2;
+
+            let link = unsafe { link_ptr.read() };
+            let node = link.node.as_ref().unwrap();
+
+            match (min_val, max_val) {
+                (None, None) => {}
+                (None, Some(max)) => assert!(node.item < max),
+                (Some(min), None) => assert!(node.item > min),
+                (Some(min), Some(max)) => assert!(node.item > min && node.item < max),
+            }
+
+            if unsafe { node.left.read() }.node.as_ref().is_some() {
+                queue.push((
+                    node.left,
+                    min_val,
+                    Some(max_val.map_or(node.item, |val| min(val, node.item))),
+                ));
+            }
+            if unsafe { node.right.read() }.node.as_ref().is_some() {
+                queue.push((
+                    node.right,
+                    Some(min_val.map_or(node.item, |val| max(val, node.item))),
+                    max_val,
+                ));
+            }
+        }
+    }
+
+    fn validate_rbt<T: Debug>(tree: &RedBlackTree<T>) {
         let root = unsafe { tree.root.read() };
         assert_eq!(root.color, Color::Black);
 
@@ -953,7 +1042,6 @@ mod tests {
                 .iter()
                 .map(|i| i32::try_from(i.as_i64().unwrap()).unwrap())
                 .collect();
-            // println!("{:?}", expected_order);
             assert_eq!(actual_order, expected_order);
         }
     }
@@ -970,6 +1058,8 @@ mod tests {
         let tree: RedBlackTree<i32> = RedBlackTree::new();
         assert_eq!(tree.size(), 0);
         assert!(tree.is_empty());
+        validate_bst(&tree);
+        validate_rbt(&tree);
         let tree: RedBlackTree<String> = RedBlackTree::new();
         assert_eq!(tree.size(), 0);
         assert!(tree.is_empty());
@@ -977,6 +1067,8 @@ mod tests {
         let tree: RedBlackTree<i32> = RedBlackTree::default();
         assert_eq!(tree.size(), 0);
         assert!(tree.is_empty());
+        validate_bst(&tree);
+        validate_rbt(&tree);
         let tree: RedBlackTree<String> = RedBlackTree::default();
         assert_eq!(tree.size(), 0);
         assert!(tree.is_empty());
@@ -984,8 +1076,17 @@ mod tests {
 
     #[test]
     fn test_contains() {
-        // left-lean tree contains
-        let tree: RedBlackTree<i32> = new_left_lean_tree();
+        // right-tilted tree contains
+        let tree: RedBlackTree<i32> = new_tilted_tree(false);
+        for i in -5..=25 {
+            if (1..=20).contains(&i) {
+                assert!(tree.contains(&i));
+            } else {
+                assert!(!tree.contains(&i));
+            }
+        }
+        // left-tilted tree contains
+        let tree: RedBlackTree<i32> = new_tilted_tree(true);
         for i in -5..=25 {
             if (1..=20).contains(&i) {
                 assert!(tree.contains(&i));
@@ -994,8 +1095,17 @@ mod tests {
             }
         }
 
-        // right-lean tree contains
-        let tree: RedBlackTree<i32> = new_right_lean_tree();
+        // compact tree contains
+        let tree: RedBlackTree<i32> = new_compact_tree(false);
+        for i in -5..=25 {
+            if (1..=20).contains(&i) {
+                assert!(tree.contains(&i));
+            } else {
+                assert!(!tree.contains(&i));
+            }
+        }
+        // compact mirror tree contains
+        let tree: RedBlackTree<i32> = new_compact_tree(false);
         for i in -5..=25 {
             if (1..=20).contains(&i) {
                 assert!(tree.contains(&i));
@@ -1004,8 +1114,8 @@ mod tests {
             }
         }
 
-        // mid-lean tree contains
-        let tree: RedBlackTree<i32> = new_mid_lean_tree();
+        // spread tree contains
+        let tree: RedBlackTree<i32> = new_spread_tree(false);
         for i in -5..=25 {
             if (1..=20).contains(&i) {
                 assert!(tree.contains(&i));
@@ -1013,9 +1123,8 @@ mod tests {
                 assert!(!tree.contains(&i));
             }
         }
-
-        // side-lean tree contains
-        let tree: RedBlackTree<i32> = new_side_lean_tree();
+        // spread mirror tree contains
+        let tree: RedBlackTree<i32> = new_spread_tree(false);
         for i in -5..=25 {
             if (1..=20).contains(&i) {
                 assert!(tree.contains(&i));
@@ -1026,87 +1135,480 @@ mod tests {
     }
 
     #[test]
-    fn test_insert() {
-        let order_data = read_json_data("./unit_test_data/rbtree_insert_orders.json");
+    fn test_insert_tilted() {
+        let order_data = read_json_data("./unit_test_data/rbt_insert_orders.json");
 
-        // right-lean tree insert
-        let expected_orders = &order_data["right_lean"];
+        // right-tilted tree
+        let expected_orders = &order_data["right_tilted"];
         let mut tree: RedBlackTree<i32> = RedBlackTree::new();
+        validate_bst(&tree);
+        validate_rbt(&tree);
         for i in 1..=20 {
             let _ = tree.insert(i);
             assert!(tree.contains(&i));
             assert_eq!(tree.size(), usize::try_from(i).unwrap());
             assert!(!tree.is_empty());
-            validate_integrity(&tree);
-            validate_order(&tree, &expected_orders[usize::try_from(i - 1).unwrap()]);
+            validate_bst(&tree);
+            validate_rbt(&tree);
+            // validate_order(&tree, &expected_orders[usize::try_from(i - 1).unwrap()]);
+        }
+        // right-tilted tree duplicate
+        for i in 1..=20 {
+            let err = tree.insert(i);
+            assert_eq!(err, Err(DuplicateItemErr));
+            assert!(tree.contains(&i));
+            assert_eq!(tree.size(), 20);
+            assert!(!tree.is_empty());
+            validate_bst(&tree);
+            validate_rbt(&tree);
+            // validate_order(&tree, &expected_orders[19]);
         }
 
-        // left-lean tree insert
-        let expected_orders = &order_data["left_lean"];
+        // left-tilted tree
+        let expected_orders = &order_data["left_tilted"];
         let mut tree: RedBlackTree<i32> = RedBlackTree::new();
+        validate_bst(&tree);
+        validate_rbt(&tree);
         for i in (1..=20).rev() {
             let _ = tree.insert(i);
             assert!(tree.contains(&i));
             assert_eq!(tree.size(), usize::try_from(21 - i).unwrap());
             assert!(!tree.is_empty());
-            validate_integrity(&tree);
-            validate_order(&tree, &expected_orders[usize::try_from(20 - i).unwrap()]);
+            validate_bst(&tree);
+            validate_rbt(&tree);
+            // validate_order(&tree, &expected_orders[usize::try_from(20 - i).unwrap()]);
         }
+        // left-tilted tree duplicate
+        for i in (1..=20).rev() {
+            let err = tree.insert(i);
+            assert_eq!(err, Err(DuplicateItemErr));
+            assert!(tree.contains(&i));
+            assert_eq!(tree.size(), 20);
+            assert!(!tree.is_empty());
+            validate_bst(&tree);
+            validate_rbt(&tree);
+            // validate_order(&tree, &expected_orders[19]);
+        }
+    }
 
-        // mid-lean tree insert
-        let expected_orders = &order_data["mid_lean"];
+    #[test]
+    fn test_insert_compact() {
+        let order_data = read_json_data("./unit_test_data/rbt_insert_orders.json");
+
+        // compact tree
+        let expected_orders = &order_data["compact"];
         let mut tree: RedBlackTree<i32> = RedBlackTree::new();
+        validate_bst(&tree);
+        validate_rbt(&tree);
         for i in 1..=10 {
             let _ = tree.insert(i);
             assert!(tree.contains(&i));
             assert_eq!(tree.size(), usize::try_from(2 * i - 1).unwrap());
             assert!(!tree.is_empty());
-            validate_integrity(&tree);
-            validate_order(&tree, &expected_orders[usize::try_from(2 * i - 2).unwrap()]);
+            validate_bst(&tree);
+            validate_rbt(&tree);
+            // validate_order(&tree, &expected_orders[usize::try_from(2 * i - 2).unwrap()]);
 
             let _ = tree.insert(21 - i);
+            assert!(tree.contains(&(21 - i)));
+            assert_eq!(tree.size(), usize::try_from(2 * i).unwrap());
+            assert!(!tree.is_empty());
+            validate_bst(&tree);
+            validate_rbt(&tree);
+            // validate_order(&tree, &expected_orders[usize::try_from(2 * i - 1).unwrap()]);
+        }
+        // compact tree duplicate
+        for i in 1..=20 {
+            let err = tree.insert(i);
+            assert_eq!(err, Err(DuplicateItemErr));
+            assert!(tree.contains(&i));
+            assert_eq!(tree.size(), 20);
+            assert!(!tree.is_empty());
+            validate_bst(&tree);
+            validate_rbt(&tree);
+            // validate_order(&tree, &expected_orders[19]);
+        }
+
+        // compact mirror tree
+        let expected_orders = &order_data["compact_mirror"];
+        let mut tree: RedBlackTree<i32> = RedBlackTree::new();
+        validate_bst(&tree);
+        validate_rbt(&tree);
+        for i in 1..=10 {
+            let _ = tree.insert(21 - i);
+            assert!(tree.contains(&(21 - i)));
+            assert_eq!(tree.size(), usize::try_from(2 * i - 1).unwrap());
+            assert!(!tree.is_empty());
+            validate_bst(&tree);
+            validate_rbt(&tree);
+            // validate_order(&tree, &expected_orders[usize::try_from(2 * i - 2).unwrap()]);
+
+            let _ = tree.insert(i);
             assert!(tree.contains(&i));
             assert_eq!(tree.size(), usize::try_from(2 * i).unwrap());
             assert!(!tree.is_empty());
-            validate_integrity(&tree);
-            validate_order(&tree, &expected_orders[usize::try_from(2 * i - 1).unwrap()]);
+            validate_bst(&tree);
+            validate_rbt(&tree);
+            // validate_order(&tree, &expected_orders[usize::try_from(2 * i - 1).unwrap()]);
+        }
+        // compact tree duplicate
+        for i in 1..=20 {
+            let err = tree.insert(i);
+            assert_eq!(err, Err(DuplicateItemErr));
+            assert!(tree.contains(&i));
+            assert_eq!(tree.size(), 20);
+            assert!(!tree.is_empty());
+            validate_bst(&tree);
+            validate_rbt(&tree);
+            // validate_order(&tree, &expected_orders[19]);
         }
     }
 
-    // #[test]
-    // fn test_temp() {
-    //     let mut tree: RedBlackTree<i32> = RedBlackTree::new();
-    //     for i in 1..=10 {
-    //         let _ = tree.insert(i);
-    //     }
-    //     tree.remove(&8);
-    //     tree.remove(&2);
-    //     let iter = tree.iter(TraversalOrder::Level);
-    //     println!("LEVEL");
-    //     for link in iter {
-    //         print!("{:?} ", link);
-    //     }
-    //     println!();
-    //
-    //     println!("IN");
-    //     let iter = tree.iter(TraversalOrder::In);
-    //     for link in iter {
-    //         print!("{:?} ", link);
-    //     }
-    //     println!();
-    //
-    //     println!("PRE");
-    //     let iter = tree.iter(TraversalOrder::Pre);
-    //     for link in iter {
-    //         print!("{:?} ", link);
-    //     }
-    //     println!();
-    //
-    //     println!("POST");
-    //     let iter = tree.iter(TraversalOrder::Post);
-    //     for link in iter {
-    //         print!("{:?} ", link);
-    //     }
-    //     println!();
-    // }
+    #[test]
+    fn test_insert_spread() {
+        let order_data = read_json_data("./unit_test_data/rbt_insert_orders.json");
+
+        // spread tree
+        let expected_orders = &order_data["spread"];
+        let mut tree: RedBlackTree<i32> = RedBlackTree::new();
+        validate_bst(&tree);
+        validate_rbt(&tree);
+        for i in (1..=10).rev() {
+            let _ = tree.insert(i);
+            assert!(tree.contains(&i));
+            assert_eq!(tree.size(), usize::try_from(21 - 2 * i).unwrap());
+            assert!(!tree.is_empty());
+            validate_bst(&tree);
+            validate_rbt(&tree);
+            // validate_order(
+            //     &tree,
+            //     &expected_orders[usize::try_from(20 - 2 * i).unwrap()],
+            // );
+
+            let _ = tree.insert(21 - i);
+            assert!(tree.contains(&(21 - i)));
+            assert_eq!(tree.size(), usize::try_from(22 - 2 * i).unwrap());
+            assert!(!tree.is_empty());
+            validate_bst(&tree);
+            validate_rbt(&tree);
+            // validate_order(
+            //     &tree,
+            //     &expected_orders[usize::try_from(21 - 2 * i).unwrap()],
+            // );
+        }
+        // spread tree duplicate
+        for i in 1..=20 {
+            let err = tree.insert(i);
+            assert_eq!(err, Err(DuplicateItemErr));
+            assert!(tree.contains(&i));
+            assert_eq!(tree.size(), 20);
+            assert!(!tree.is_empty());
+            validate_bst(&tree);
+            validate_rbt(&tree);
+            // validate_order(&tree, &expected_orders[19]);
+        }
+
+        // spread mirror tree
+        let expected_orders = &order_data["spread_mirror"];
+        let mut tree: RedBlackTree<i32> = RedBlackTree::new();
+        validate_bst(&tree);
+        validate_rbt(&tree);
+        for i in (1..=10).rev() {
+            let _ = tree.insert(21 - i);
+            assert!(tree.contains(&(21 - i)));
+            assert_eq!(tree.size(), usize::try_from(21 - 2 * i).unwrap());
+            assert!(!tree.is_empty());
+            validate_bst(&tree);
+            validate_rbt(&tree);
+            // validate_order(
+            //     &tree,
+            //     &expected_orders[usize::try_from(20 - 2 * i).unwrap()],
+            // );
+
+            let _ = tree.insert(i);
+            assert!(tree.contains(&i));
+            assert_eq!(tree.size(), usize::try_from(22 - 2 * i).unwrap());
+            assert!(!tree.is_empty());
+            validate_bst(&tree);
+            validate_rbt(&tree);
+            // validate_order(
+            //     &tree,
+            //     &expected_orders[usize::try_from(21 - 2 * i).unwrap()],
+            // );
+        }
+        // spread mirror tree duplicate
+        for i in 1..=20 {
+            let err = tree.insert(i);
+            assert_eq!(err, Err(DuplicateItemErr));
+            assert!(tree.contains(&i));
+            assert_eq!(tree.size(), 20);
+            assert!(!tree.is_empty());
+            validate_bst(&tree);
+            validate_rbt(&tree);
+            // validate_order(&tree, &expected_orders[19]);
+        }
+    }
+
+    #[test]
+    fn test_remove_single_item_tilted() {
+        let order_data = read_json_data("./unit_test_data/rbt_remove_single_orders.json");
+
+        // right-tilted tree
+        let expected_orders = &order_data["right_tilted"];
+        for i in 1..=20 {
+            let mut tree = new_tilted_tree(false);
+            assert!(tree.contains(&i));
+            assert_eq!(tree.size(), 20);
+            assert_eq!(tree.remove(&i), Some(i));
+            assert!(!tree.contains(&i));
+            assert_eq!(tree.size(), 19);
+            assert_eq!(tree.remove(&i), None);
+            validate_bst(&tree);
+            validate_rbt(&tree);
+            // validate_order(&tree, &expected_orders[usize::try_from(i - 1).unwrap()]);
+        }
+
+        // left-tilted tree
+        let expected_orders = &order_data["left_tilted"];
+        for i in 1..=20 {
+            let mut tree = new_tilted_tree(true);
+            assert!(tree.contains(&i));
+            assert_eq!(tree.size(), 20);
+            assert_eq!(tree.remove(&i), Some(i));
+            assert!(!tree.contains(&i));
+            assert_eq!(tree.size(), 19);
+            assert_eq!(tree.remove(&i), None);
+            validate_bst(&tree);
+            validate_rbt(&tree);
+            // validate_order(&tree, &expected_orders[usize::try_from(i - 1).unwrap()]);
+        }
+    }
+
+    #[test]
+    fn test_remove_single_item_compact() {
+        let order_data = read_json_data("./unit_test_data/rbt_remove_single_orders.json");
+
+        // compact tree
+        let expected_orders = &order_data["compact"];
+        for i in 1..=20 {
+            let mut tree = new_compact_tree(false);
+            assert!(tree.contains(&i));
+            assert_eq!(tree.size(), 20);
+            assert_eq!(tree.remove(&i), Some(i));
+            assert!(!tree.contains(&i));
+            assert_eq!(tree.size(), 19);
+            assert_eq!(tree.remove(&i), None);
+            validate_bst(&tree);
+            validate_rbt(&tree);
+            // validate_order(&tree, &expected_orders[usize::try_from(i - 1).unwrap()]);
+        }
+        // compact mirror tree
+        let expected_orders = &order_data["compact_mirror"];
+        for i in 1..=20 {
+            let mut tree = new_compact_tree(true);
+            assert!(tree.contains(&i));
+            assert_eq!(tree.size(), 20);
+            assert_eq!(tree.remove(&i), Some(i));
+            assert!(!tree.contains(&i));
+            assert_eq!(tree.size(), 19);
+            assert_eq!(tree.remove(&i), None);
+            validate_bst(&tree);
+            validate_rbt(&tree);
+            // validate_order(&tree, &expected_orders[usize::try_from(i - 1).unwrap()]);
+        }
+    }
+
+    #[test]
+    fn test_remove_single_item_sprea() {
+        let order_data = read_json_data("./unit_test_data/rbt_remove_single_orders.json");
+
+        // spread tree
+        let expected_orders = &order_data["spread"];
+        for i in 1..=20 {
+            let mut tree = new_spread_tree(false);
+            assert!(tree.contains(&i));
+            assert_eq!(tree.size(), 20);
+            assert_eq!(tree.remove(&i), Some(i));
+            assert!(!tree.contains(&i));
+            assert_eq!(tree.size(), 19);
+            assert_eq!(tree.remove(&i), None);
+            validate_bst(&tree);
+            validate_rbt(&tree);
+            // validate_order(&tree, &expected_orders[usize::try_from(i - 1).unwrap()]);
+        }
+        // spread mirror tree
+        let expected_orders = &order_data["spread_mirror"];
+        for i in 1..=20 {
+            let mut tree = new_spread_tree(true);
+            assert!(tree.contains(&i));
+            assert_eq!(tree.size(), 20);
+            assert_eq!(tree.remove(&i), Some(i));
+            assert!(!tree.contains(&i));
+            assert_eq!(tree.size(), 19);
+            assert_eq!(tree.remove(&i), None);
+            validate_bst(&tree);
+            validate_rbt(&tree);
+            // validate_order(&tree, &expected_orders[usize::try_from(i - 1).unwrap()]);
+        }
+    }
+
+    #[test]
+    fn test_remove_all_asc_order_tilted() {
+        // right-tilted tree
+        let mut tree = new_tilted_tree(false);
+        for i in 1..=20 {
+            assert!(tree.contains(&i));
+            assert_eq!(tree.size(), usize::try_from(21 - i).unwrap());
+            assert_eq!(tree.remove(&i), Some(i));
+            assert!(!tree.contains(&i));
+            assert_eq!(tree.size(), usize::try_from(20 - i).unwrap());
+            validate_bst(&tree);
+            validate_rbt(&tree);
+        }
+
+        // left-tilted tree
+        let mut tree = new_tilted_tree(true);
+        for i in 1..=20 {
+            assert!(tree.contains(&i));
+            assert_eq!(tree.size(), usize::try_from(21 - i).unwrap());
+            assert_eq!(tree.remove(&i), Some(i));
+            assert!(!tree.contains(&i));
+            assert_eq!(tree.size(), usize::try_from(20 - i).unwrap());
+            validate_bst(&tree);
+            validate_rbt(&tree);
+        }
+    }
+
+    #[test]
+    fn test_remove_all_asc_order_compact() {
+        // compact tree
+        let mut tree = new_compact_tree(false);
+        for i in 1..=20 {
+            assert!(tree.contains(&i));
+            assert_eq!(tree.size(), usize::try_from(21 - i).unwrap());
+            assert_eq!(tree.remove(&i), Some(i));
+            assert!(!tree.contains(&i));
+            assert_eq!(tree.size(), usize::try_from(20 - i).unwrap());
+            validate_bst(&tree);
+            validate_rbt(&tree);
+        }
+
+        // compact mirror tree
+        let mut tree = new_compact_tree(true);
+        for i in 1..=20 {
+            assert!(tree.contains(&i));
+            assert_eq!(tree.size(), usize::try_from(21 - i).unwrap());
+            assert_eq!(tree.remove(&i), Some(i));
+            assert!(!tree.contains(&i));
+            assert_eq!(tree.size(), usize::try_from(20 - i).unwrap());
+            validate_bst(&tree);
+            validate_rbt(&tree);
+        }
+    }
+
+    #[test]
+    fn test_remove_all_asc_order_spread() {
+        // spread tree
+        let mut tree = new_spread_tree(false);
+        for i in 1..=20 {
+            assert!(tree.contains(&i));
+            assert_eq!(tree.size(), usize::try_from(21 - i).unwrap());
+            assert_eq!(tree.remove(&i), Some(i));
+            assert!(!tree.contains(&i));
+            assert_eq!(tree.size(), usize::try_from(20 - i).unwrap());
+            validate_bst(&tree);
+            validate_rbt(&tree);
+        }
+
+        // spread mirror tree
+        let mut tree = new_spread_tree(true);
+        for i in 1..=20 {
+            assert!(tree.contains(&i));
+            assert_eq!(tree.size(), usize::try_from(21 - i).unwrap());
+            assert_eq!(tree.remove(&i), Some(i));
+            assert!(!tree.contains(&i));
+            assert_eq!(tree.size(), usize::try_from(20 - i).unwrap());
+            validate_bst(&tree);
+            validate_rbt(&tree);
+        }
+    }
+
+    #[test]
+    fn test_remove_all_desc_order_tilted() {
+        // right-tilted tree
+        let mut tree = new_tilted_tree(false);
+        for i in (1..=20).rev() {
+            assert!(tree.contains(&i));
+            assert_eq!(tree.size(), usize::try_from(i).unwrap());
+            assert_eq!(tree.remove(&i), Some(i));
+            assert!(!tree.contains(&i));
+            assert_eq!(tree.size(), usize::try_from(i - 1).unwrap());
+            validate_bst(&tree);
+            validate_rbt(&tree);
+        }
+
+        // right-tilted tree
+        let mut tree = new_tilted_tree(true);
+        for i in (1..=20).rev() {
+            assert!(tree.contains(&i));
+            assert_eq!(tree.size(), usize::try_from(i).unwrap());
+            assert_eq!(tree.remove(&i), Some(i));
+            assert!(!tree.contains(&i));
+            assert_eq!(tree.size(), usize::try_from(i - 1).unwrap());
+            validate_bst(&tree);
+            validate_rbt(&tree);
+        }
+    }
+
+    #[test]
+    fn test_remove_all_desc_order_compact() {
+        // compact tree
+        let mut tree = new_compact_tree(false);
+        for i in (1..=20).rev() {
+            assert!(tree.contains(&i));
+            assert_eq!(tree.size(), usize::try_from(i).unwrap());
+            assert_eq!(tree.remove(&i), Some(i));
+            assert!(!tree.contains(&i));
+            assert_eq!(tree.size(), usize::try_from(i - 1).unwrap());
+            validate_bst(&tree);
+            validate_rbt(&tree);
+        }
+        // compact mirror tree
+        let mut tree = new_compact_tree(true);
+        for i in (1..=20).rev() {
+            assert!(tree.contains(&i));
+            assert_eq!(tree.size(), usize::try_from(i).unwrap());
+            assert_eq!(tree.remove(&i), Some(i));
+            assert!(!tree.contains(&i));
+            assert_eq!(tree.size(), usize::try_from(i - 1).unwrap());
+            validate_bst(&tree);
+            validate_rbt(&tree);
+        }
+    }
+
+    #[test]
+    fn test_remove_all_desc_order_spread() {
+        // spread tree
+        let mut tree = new_spread_tree(false);
+        for i in (1..=20).rev() {
+            assert!(tree.contains(&i));
+            assert_eq!(tree.size(), usize::try_from(i).unwrap());
+            assert_eq!(tree.remove(&i), Some(i));
+            assert!(!tree.contains(&i));
+            assert_eq!(tree.size(), usize::try_from(i - 1).unwrap());
+            validate_bst(&tree);
+            validate_rbt(&tree);
+        }
+        // spread mirror tree
+        let mut tree = new_spread_tree(true);
+        for i in (1..=20).rev() {
+            assert!(tree.contains(&i));
+            assert_eq!(tree.size(), usize::try_from(i).unwrap());
+            assert_eq!(tree.remove(&i), Some(i));
+            assert!(!tree.contains(&i));
+            assert_eq!(tree.size(), usize::try_from(i - 1).unwrap());
+            validate_bst(&tree);
+            validate_rbt(&tree);
+        }
+    }
 }

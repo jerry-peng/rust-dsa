@@ -156,12 +156,12 @@ impl<T: Ord + Debug> BinarySearchTree<T> {
     /// # Example
     ///
     /// ```
-    /// use dsa::binary_search_tree::{BinarySearchTree, DuplicateItem};
+    /// use dsa::binary_search_tree::{BinarySearchTree, DuplicateItemErr};
     /// let mut tree: BinarySearchTree<i32> = BinarySearchTree::new();
     /// assert!(!tree.contains(&5));
     /// assert_eq!(tree.insert(5), Ok(()));
     /// assert!(tree.contains(&5));
-    /// assert_eq!(tree.insert(5), Err(DuplicateItem));
+    /// assert_eq!(tree.insert(5), Err(DuplicateItemErr));
     /// ```
     pub fn insert(&mut self, item: T) -> Result<(), DuplicateItemErr> {
         // if tree is empty (head points to None),
@@ -890,11 +890,19 @@ mod tests {
                 (Some(min), Some(max)) => assert!(node.item > min && node.item < max),
             }
 
-            if let Some(node) = node.left.0.as_ref() {
-                queue.push((node, min_val, max_val.map(|val| max(val, node.item))));
+            if let Some(left_node) = node.left.0.as_ref() {
+                queue.push((
+                    left_node,
+                    min_val,
+                    Some(max_val.map_or(node.item, |val| min(val, node.item))),
+                ));
             }
-            if let Some(node) = node.right.0.as_ref() {
-                queue.push((node, min_val.map(|val| min(val, node.item)), max_val));
+            if let Some(right_node) = node.right.0.as_ref() {
+                queue.push((
+                    right_node,
+                    Some(min_val.map_or(node.item, |val| max(val, node.item))),
+                    max_val,
+                ));
             }
         }
     }
@@ -930,6 +938,7 @@ mod tests {
         let tree: BinarySearchTree<i32> = BinarySearchTree::new();
         assert_eq!(tree.size(), 0);
         assert!(tree.is_empty());
+        validate_bst(&tree);
         let tree: BinarySearchTree<String> = BinarySearchTree::new();
         assert_eq!(tree.size(), 0);
         assert!(tree.is_empty());
@@ -937,6 +946,7 @@ mod tests {
         let tree: BinarySearchTree<i32> = BinarySearchTree::default();
         assert_eq!(tree.size(), 0);
         assert!(tree.is_empty());
+        validate_bst(&tree);
         let tree: BinarySearchTree<String> = BinarySearchTree::default();
         assert_eq!(tree.size(), 0);
         assert!(tree.is_empty());
@@ -1043,6 +1053,7 @@ mod tests {
             validate_bst(&tree);
             validate_order(&tree, &expected_orders[usize::try_from(20 - i).unwrap()]);
         }
+        // left-only tree insert duplicate
         for i in 1..=20 {
             let err = tree.insert(i);
             assert_eq!(err, Err(DuplicateItemErr));
@@ -1064,6 +1075,7 @@ mod tests {
             validate_bst(&tree);
             validate_order(&tree, &expected_orders[usize::try_from(i - 1).unwrap()]);
         }
+        // right-only tree insert duplicate
         for i in 1..=25 {
             let err = tree.insert(i);
             assert_eq!(err, Err(DuplicateItemErr));
@@ -1077,7 +1089,7 @@ mod tests {
 
     #[test]
     fn test_remove_single_item() {
-        let order_data = read_json_data("./unit_test_data/bst_remove_orders.json");
+        let order_data = read_json_data("./unit_test_data/bst_remove_single_orders.json");
 
         // flat tree
         let expected_orders = &order_data["flat"];
@@ -1087,6 +1099,7 @@ mod tests {
             assert!(tree.contains(&i));
             assert_eq!(tree.remove(&i), Some(i));
             assert_eq!(tree.size(), usize::try_from(14).unwrap());
+            assert_eq!(tree.remove(&i), None);
             assert!(!tree.contains(&i));
             assert!(!tree.is_empty());
             validate_bst(&tree);
@@ -1101,6 +1114,7 @@ mod tests {
             assert!(tree.contains(&i));
             assert_eq!(tree.remove(&i), Some(i));
             assert_eq!(tree.size(), usize::try_from(16).unwrap());
+            assert_eq!(tree.remove(&i), None);
             assert!(!tree.contains(&i));
             assert!(!tree.is_empty());
             validate_bst(&tree);
@@ -1115,6 +1129,7 @@ mod tests {
             assert!(tree.contains(&i));
             assert_eq!(tree.remove(&i), Some(i));
             assert_eq!(tree.size(), usize::try_from(19).unwrap());
+            assert_eq!(tree.remove(&i), None);
             assert!(!tree.contains(&i));
             assert!(!tree.is_empty());
             validate_bst(&tree);
@@ -1129,6 +1144,7 @@ mod tests {
             assert!(tree.contains(&i));
             assert_eq!(tree.remove(&i), Some(i));
             assert_eq!(tree.size(), usize::try_from(24).unwrap());
+            assert_eq!(tree.remove(&i), None);
             assert!(!tree.contains(&i));
             assert!(!tree.is_empty());
             validate_bst(&tree);
@@ -1146,6 +1162,7 @@ mod tests {
             assert_eq!(tree.remove(item), Some(*item));
             assert_eq!(tree.size(), 14 - index);
             assert!(!tree.contains(item));
+            validate_bst(&tree);
         }
         assert!(tree.is_empty());
 
@@ -1157,6 +1174,7 @@ mod tests {
             assert_eq!(tree.remove(item), Some(*item));
             assert_eq!(tree.size(), 16 - index);
             assert!(!tree.contains(item));
+            validate_bst(&tree);
         }
         assert!(tree.is_empty());
 
@@ -1168,6 +1186,7 @@ mod tests {
             assert_eq!(tree.remove(&i), Some(i));
             assert_eq!(tree.size(), usize::try_from(i - 1).unwrap());
             assert!(!tree.contains(&i));
+            validate_bst(&tree);
         }
         assert!(tree.is_empty());
 
@@ -1179,6 +1198,7 @@ mod tests {
             assert_eq!(tree.remove(&i), Some(i));
             assert_eq!(tree.size(), usize::try_from(25 - i).unwrap());
             assert!(!tree.contains(&i));
+            validate_bst(&tree);
         }
         assert!(tree.is_empty());
     }
@@ -1201,6 +1221,7 @@ mod tests {
             assert_eq!(tree.remove(&i), Some(i));
             assert_eq!(tree.size(), usize::try_from(15 - i).unwrap());
             assert!(!tree.contains(&i));
+            validate_bst(&tree);
         }
         assert!(tree.is_empty());
         for i in 16..=20 {
@@ -1227,6 +1248,7 @@ mod tests {
             assert_eq!(tree.remove(&i), Some(i));
             assert_eq!(tree.size(), usize::try_from(16 - i).unwrap());
             assert!(!tree.contains(&i));
+            validate_bst(&tree);
         }
         assert!(tree.is_empty());
         for i in 17..=20 {
@@ -1253,6 +1275,7 @@ mod tests {
             assert_eq!(tree.remove(&i), Some(i));
             assert_eq!(tree.size(), usize::try_from(20 - i).unwrap());
             assert!(!tree.contains(&i));
+            validate_bst(&tree);
         }
         assert!(tree.is_empty());
         for i in 21..=25 {
@@ -1279,6 +1302,7 @@ mod tests {
             assert_eq!(tree.remove(&i), Some(i));
             assert_eq!(tree.size(), usize::try_from(25 - i).unwrap());
             assert!(!tree.contains(&i));
+            validate_bst(&tree);
         }
         assert!(tree.is_empty());
         for i in 26..=30 {
@@ -1308,6 +1332,7 @@ mod tests {
             assert_eq!(tree.remove(&i), Some(i));
             assert_eq!(tree.size(), usize::try_from(i - 1).unwrap());
             assert!(!tree.contains(&i));
+            validate_bst(&tree);
         }
         assert!(tree.is_empty());
         for i in (-5..=0).rev() {
@@ -1334,6 +1359,7 @@ mod tests {
             assert_eq!(tree.remove(&i), Some(i));
             assert_eq!(tree.size(), usize::try_from(i).unwrap());
             assert!(!tree.contains(&i));
+            validate_bst(&tree);
         }
         assert!(tree.is_empty());
         for i in (-5..=-1).rev() {
@@ -1360,6 +1386,7 @@ mod tests {
             assert_eq!(tree.remove(&i), Some(i));
             assert_eq!(tree.size(), usize::try_from(i - 1).unwrap());
             assert!(!tree.contains(&i));
+            validate_bst(&tree);
         }
         assert!(tree.is_empty());
         for i in (-5..=-1).rev() {
@@ -1386,6 +1413,7 @@ mod tests {
             assert_eq!(tree.remove(&i), Some(i));
             assert_eq!(tree.size(), usize::try_from(i - 1).unwrap());
             assert!(!tree.contains(&i));
+            validate_bst(&tree);
         }
         assert!(tree.is_empty());
         for i in (-5..=-1).rev() {
@@ -1406,6 +1434,7 @@ mod tests {
             assert_eq!(tree.max(), Some(&15));
             assert_eq!(tree.pop_min(), Some(i));
             assert_eq!(tree.size(), usize::try_from(15 - i).unwrap());
+            validate_bst(&tree);
         }
         assert_eq!(tree.min(), None);
         assert_eq!(tree.max(), None);
@@ -1418,6 +1447,7 @@ mod tests {
             assert_eq!(tree.max(), Some(&16));
             assert_eq!(tree.pop_min(), Some(i));
             assert_eq!(tree.size(), usize::try_from(16 - i).unwrap());
+            validate_bst(&tree);
         }
         assert_eq!(tree.min(), None);
         assert_eq!(tree.max(), None);
@@ -1430,6 +1460,7 @@ mod tests {
             assert_eq!(tree.max(), Some(&20));
             assert_eq!(tree.pop_min(), Some(i));
             assert_eq!(tree.size(), usize::try_from(20 - i).unwrap());
+            validate_bst(&tree);
         }
         assert_eq!(tree.min(), None);
         assert_eq!(tree.max(), None);
@@ -1442,6 +1473,7 @@ mod tests {
             assert_eq!(tree.max(), Some(&25));
             assert_eq!(tree.pop_min(), Some(i));
             assert_eq!(tree.size(), usize::try_from(25 - i).unwrap());
+            validate_bst(&tree);
         }
         assert_eq!(tree.min(), None);
         assert_eq!(tree.max(), None);
@@ -1457,6 +1489,7 @@ mod tests {
             assert_eq!(tree.max(), Some(&i));
             assert_eq!(tree.pop_max(), Some(i));
             assert_eq!(tree.size(), usize::try_from(i - 1).unwrap());
+            validate_bst(&tree);
         }
         assert_eq!(tree.min(), None);
         assert_eq!(tree.max(), None);
@@ -1469,6 +1502,7 @@ mod tests {
             assert_eq!(tree.max(), Some(&i));
             assert_eq!(tree.pop_max(), Some(i));
             assert_eq!(tree.size(), usize::try_from(i).unwrap());
+            validate_bst(&tree);
         }
         assert_eq!(tree.min(), None);
         assert_eq!(tree.max(), None);
@@ -1481,6 +1515,7 @@ mod tests {
             assert_eq!(tree.max(), Some(&i));
             assert_eq!(tree.pop_max(), Some(i));
             assert_eq!(tree.size(), usize::try_from(i - 1).unwrap());
+            validate_bst(&tree);
         }
         assert_eq!(tree.min(), None);
         assert_eq!(tree.max(), None);
@@ -1493,6 +1528,7 @@ mod tests {
             assert_eq!(tree.max(), Some(&i));
             assert_eq!(tree.pop_max(), Some(i));
             assert_eq!(tree.size(), usize::try_from(i - 1).unwrap());
+            validate_bst(&tree);
         }
         assert_eq!(tree.min(), None);
         assert_eq!(tree.max(), None);
@@ -1500,231 +1536,44 @@ mod tests {
     }
 
     #[test]
-    fn test_iter() {
-        // flat tree
-        let tree = new_flat_tree();
-        let mut iter = tree.iter(TraversalOrder::In);
-        for i in 1..=15 {
-            assert_eq!(iter.next(), Some(&i));
-        }
-        assert_eq!(iter.next(), None);
-
-        let mut iter = tree.iter(TraversalOrder::Pre);
-        for i in [8, 4, 2, 1, 3, 6, 5, 7, 12, 10, 9, 11, 14, 13, 15] {
-            assert_eq!(iter.next(), Some(&i));
-        }
-        assert_eq!(iter.next(), None);
-
-        let mut iter = tree.iter(TraversalOrder::Post);
-        for i in [1, 3, 2, 5, 7, 6, 4, 9, 11, 10, 13, 15, 14, 12, 8] {
-            assert_eq!(iter.next(), Some(&i));
-        }
-        assert_eq!(iter.next(), None);
-
-        let mut iter = tree.iter(TraversalOrder::Level);
-        for i in [8, 4, 12, 2, 6, 10, 14, 1, 3, 5, 7, 9, 11, 13, 15] {
-            assert_eq!(iter.next(), Some(&i));
-        }
-
-        /* Shape
-         *              8
-         *           /     \
-         *         4        12
-         *      /     \   /     \
-         *     2      7  9        15
-         *    / \    /    \      / \
-         *   1  3   6     10    14 16
-         *  /      /       \    /
-         * 0      5        11 13
-         */
-        // jagged tree
-        let tree = new_jagged_tree();
-        let mut iter = tree.iter(TraversalOrder::In);
-        for i in 0..=16 {
-            assert_eq!(iter.next(), Some(&i));
-        }
-        assert_eq!(iter.next(), None);
-
-        let mut iter = tree.iter(TraversalOrder::Pre);
-        for i in [8, 4, 2, 1, 0, 3, 7, 6, 5, 12, 9, 10, 11, 15, 14, 13, 16] {
-            assert_eq!(iter.next(), Some(&i));
-        }
-        assert_eq!(iter.next(), None);
-        let mut iter = tree.iter(TraversalOrder::Post);
-        for i in [0, 1, 3, 2, 5, 6, 7, 4, 11, 10, 9, 13, 14, 16, 15, 12, 8] {
-            assert_eq!(iter.next(), Some(&i));
-        }
-        assert_eq!(iter.next(), None);
-        let mut iter = tree.iter(TraversalOrder::Level);
-        for i in [8, 4, 12, 2, 7, 9, 15, 1, 3, 6, 10, 14, 16, 0, 5, 11, 13] {
-            assert_eq!(iter.next(), Some(&i));
-        }
-        assert_eq!(iter.next(), None);
-
-        // left-only tree
-        let tree = new_left_only_tree();
-        let mut iter = tree.iter(TraversalOrder::In);
-        for i in 1..=20 {
-            assert_eq!(iter.next(), Some(&i))
-        }
-        assert_eq!(iter.next(), None);
-        let mut iter = tree.iter(TraversalOrder::Pre);
-        for i in (1..=20).rev() {
-            assert_eq!(iter.next(), Some(&i))
-        }
-        assert_eq!(iter.next(), None);
-        let mut iter = tree.iter(TraversalOrder::Post);
-        for i in 1..=20 {
-            assert_eq!(iter.next(), Some(&i))
-        }
-        assert_eq!(iter.next(), None);
-        let mut iter = tree.iter(TraversalOrder::Level);
-        for i in (1..=20).rev() {
-            assert_eq!(iter.next(), Some(&i))
-        }
-        assert_eq!(iter.next(), None);
-
-        // right-only tree
-        let tree = new_right_only_tree();
-        let mut iter = tree.iter(TraversalOrder::In);
-        for i in 1..=25 {
-            assert_eq!(iter.next(), Some(&i))
-        }
-        assert_eq!(iter.next(), None);
-        let mut iter = tree.iter(TraversalOrder::Pre);
-        for i in 1..=25 {
-            assert_eq!(iter.next(), Some(&i))
-        }
-        assert_eq!(iter.next(), None);
-        let mut iter = tree.iter(TraversalOrder::Post);
-        for i in (1..=25).rev() {
-            assert_eq!(iter.next(), Some(&i))
-        }
-        assert_eq!(iter.next(), None);
-        let mut iter = tree.iter(TraversalOrder::Level);
-        for i in 1..=25 {
-            assert_eq!(iter.next(), Some(&i))
-        }
-        assert_eq!(iter.next(), None);
-    }
-
-    #[test]
     fn test_into_iter() {
-        // flat tree
-        let tree = new_flat_tree();
-        let mut iter = tree.into_iter(TraversalOrder::In);
-        for i in 1..=15 {
-            assert_eq!(iter.next(), Some(i));
+        let order_data = read_json_data("./unit_test_data/bst_insert_orders.json");
+        for generators_and_orders in [
+            (
+                new_flat_tree as fn() -> BinarySearchTree<i32>,
+                &order_data["flat"][14],
+            ),
+            (
+                new_jagged_tree as fn() -> BinarySearchTree<i32>,
+                &order_data["jagged"][16],
+            ),
+            (
+                new_left_only_tree as fn() -> BinarySearchTree<i32>,
+                &order_data["left_only"][19],
+            ),
+            (
+                new_right_only_tree as fn() -> BinarySearchTree<i32>,
+                &order_data["right_only"][24],
+            ),
+        ] {
+            let tree_generator = generators_and_orders.0;
+            let expected_orders = generators_and_orders.1;
+            for order_type in [
+                (TraversalOrder::Level, "level"),
+                (TraversalOrder::In, "in"),
+                (TraversalOrder::Pre, "pre"),
+                (TraversalOrder::Post, "post"),
+            ] {
+                let tree = tree_generator();
+                let actual_order: Vec<i32> = tree.into_iter(order_type.0).collect();
+                let expected_order: Vec<i32> = expected_orders[order_type.1]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .map(|i| i32::try_from(i.as_i64().unwrap()).unwrap())
+                    .collect();
+                assert_eq!(actual_order, expected_order);
+            }
         }
-        assert_eq!(iter.next(), None);
-
-        let tree = new_flat_tree();
-        let mut iter = tree.into_iter(TraversalOrder::Pre);
-        for i in [8, 4, 2, 1, 3, 6, 5, 7, 12, 10, 9, 11, 14, 13, 15] {
-            assert_eq!(iter.next(), Some(i));
-        }
-        assert_eq!(iter.next(), None);
-
-        let tree = new_flat_tree();
-        let mut iter = tree.into_iter(TraversalOrder::Post);
-        for i in [1, 3, 2, 5, 7, 6, 4, 9, 11, 10, 13, 15, 14, 12, 8] {
-            assert_eq!(iter.next(), Some(i));
-        }
-        assert_eq!(iter.next(), None);
-
-        let tree = new_flat_tree();
-        let mut iter = tree.into_iter(TraversalOrder::Level);
-        for i in [8, 4, 12, 2, 6, 10, 14, 1, 3, 5, 7, 9, 11, 13, 15] {
-            assert_eq!(iter.next(), Some(i));
-        }
-
-        /* Shape
-         *              8
-         *           /     \
-         *         4        12
-         *      /     \   /     \
-         *     2      7  9        15
-         *    / \    /    \      / \
-         *   1  3   6     10    14 16
-         *  /      /       \    /
-         * 0      5        11 13
-         */
-        // jagged tree
-        let tree = new_jagged_tree();
-        let mut iter = tree.into_iter(TraversalOrder::In);
-        for i in 0..=16 {
-            assert_eq!(iter.next(), Some(i));
-        }
-        assert_eq!(iter.next(), None);
-        let tree = new_jagged_tree();
-        let mut iter = tree.into_iter(TraversalOrder::Pre);
-        for i in [8, 4, 2, 1, 0, 3, 7, 6, 5, 12, 9, 10, 11, 15, 14, 13, 16] {
-            assert_eq!(iter.next(), Some(i));
-        }
-        assert_eq!(iter.next(), None);
-        let tree = new_jagged_tree();
-        let mut iter = tree.into_iter(TraversalOrder::Post);
-        for i in [0, 1, 3, 2, 5, 6, 7, 4, 11, 10, 9, 13, 14, 16, 15, 12, 8] {
-            assert_eq!(iter.next(), Some(i));
-        }
-        assert_eq!(iter.next(), None);
-        let tree = new_jagged_tree();
-        let mut iter = tree.into_iter(TraversalOrder::Level);
-        for i in [8, 4, 12, 2, 7, 9, 15, 1, 3, 6, 10, 14, 16, 0, 5, 11, 13] {
-            assert_eq!(iter.next(), Some(i));
-        }
-        assert_eq!(iter.next(), None);
-
-        // left-only tree
-        let tree = new_left_only_tree();
-        let mut iter = tree.into_iter(TraversalOrder::In);
-        for i in 1..=20 {
-            assert_eq!(iter.next(), Some(i))
-        }
-        assert_eq!(iter.next(), None);
-        let tree = new_left_only_tree();
-        let mut iter = tree.into_iter(TraversalOrder::Pre);
-        for i in (1..=20).rev() {
-            assert_eq!(iter.next(), Some(i))
-        }
-        assert_eq!(iter.next(), None);
-        let tree = new_left_only_tree();
-        let mut iter = tree.into_iter(TraversalOrder::Post);
-        for i in 1..=20 {
-            assert_eq!(iter.next(), Some(i))
-        }
-        assert_eq!(iter.next(), None);
-        let tree = new_left_only_tree();
-        let mut iter = tree.into_iter(TraversalOrder::Level);
-        for i in (1..=20).rev() {
-            assert_eq!(iter.next(), Some(i))
-        }
-        assert_eq!(iter.next(), None);
-
-        // right-only tree
-        let tree = new_right_only_tree();
-        let mut iter = tree.into_iter(TraversalOrder::In);
-        for i in 1..=25 {
-            assert_eq!(iter.next(), Some(i))
-        }
-        assert_eq!(iter.next(), None);
-        let tree = new_right_only_tree();
-        let mut iter = tree.into_iter(TraversalOrder::Pre);
-        for i in 1..=25 {
-            assert_eq!(iter.next(), Some(i))
-        }
-        assert_eq!(iter.next(), None);
-        let tree = new_right_only_tree();
-        let mut iter = tree.into_iter(TraversalOrder::Post);
-        for i in (1..=25).rev() {
-            assert_eq!(iter.next(), Some(i))
-        }
-        assert_eq!(iter.next(), None);
-        let tree = new_right_only_tree();
-        let mut iter = tree.into_iter(TraversalOrder::Level);
-        for i in 1..=25 {
-            assert_eq!(iter.next(), Some(i))
-        }
-        assert_eq!(iter.next(), None);
     }
 }
