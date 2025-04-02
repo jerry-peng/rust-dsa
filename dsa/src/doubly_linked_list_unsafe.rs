@@ -1,6 +1,6 @@
 //! Doubly linked list implemented with unsafe rust
 //!
-use std::alloc::{self, alloc, Layout};
+use std::alloc::{self, Layout, alloc};
 use std::boxed::Box;
 use std::ptr::NonNull;
 

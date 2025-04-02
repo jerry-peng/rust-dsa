@@ -1,5 +1,5 @@
 {
-  "right_lean": [
+  "right_tilted": [
     {
       "level": [1],
       "pre": [1],
@@ -135,7 +135,7 @@
       ]
     }
   ],
-  "left_lean": [
+  "left_tilted": [
     {
       "level": [20],
       "pre": [20],
@@ -275,7 +275,7 @@
       ]
     }
   ],
-  "mid_lean": [
+  "compact": [
     {
       "level": [1],
       "pre": [1],
@@ -411,7 +411,7 @@
       ]
     }
   ],
-  "side_lean": [
+  "spread_mirror": [
     {
       "level": [11],
       "in": [11],
