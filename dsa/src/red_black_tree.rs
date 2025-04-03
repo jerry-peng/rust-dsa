@@ -1089,7 +1089,6 @@ mod tests {
             (TraversalOrder::Post, "post"),
         ];
         for order_type in order_types {
-            println!("{:?}", order_type);
             let actual_order: Vec<i32> = tree.iter(order_type.0).copied().collect();
             let expected_order: Vec<i32> = expected_orders[order_type.1]
                 .as_array()
@@ -1474,7 +1473,7 @@ mod tests {
     }
 
     #[test]
-    fn test_remove_single_item_sprea() {
+    fn test_remove_single_item_spread() {
         let order_data = read_json_data("./unit_test_data/rbt_remove_single_orders.json");
 
         // spread tree
@@ -1519,6 +1518,7 @@ mod tests {
             assert_eq!(tree.remove(&i), Some(i));
             assert!(!tree.contains(&i));
             assert_eq!(tree.size(), usize::try_from(20 - i).unwrap());
+            assert_eq!(tree.remove(&i), None);
             validate_bst(&tree);
             validate_rbt(&tree);
             validate_order(&tree, &expected_orders[usize::try_from(i - 1).unwrap()]);
@@ -1533,6 +1533,7 @@ mod tests {
             assert_eq!(tree.remove(&i), Some(i));
             assert!(!tree.contains(&i));
             assert_eq!(tree.size(), usize::try_from(20 - i).unwrap());
+            assert_eq!(tree.remove(&i), None);
             validate_bst(&tree);
             validate_rbt(&tree);
             validate_order(&tree, &expected_orders[usize::try_from(i - 1).unwrap()]);
@@ -1551,6 +1552,7 @@ mod tests {
             assert_eq!(tree.remove(&i), Some(i));
             assert!(!tree.contains(&i));
             assert_eq!(tree.size(), usize::try_from(20 - i).unwrap());
+            assert_eq!(tree.remove(&i), None);
             validate_bst(&tree);
             validate_rbt(&tree);
             validate_order(&tree, &expected_orders[usize::try_from(i - 1).unwrap()]);
@@ -1565,6 +1567,7 @@ mod tests {
             assert_eq!(tree.remove(&i), Some(i));
             assert!(!tree.contains(&i));
             assert_eq!(tree.size(), usize::try_from(20 - i).unwrap());
+            assert_eq!(tree.remove(&i), None);
             validate_bst(&tree);
             validate_rbt(&tree);
             validate_order(&tree, &expected_orders[usize::try_from(i - 1).unwrap()]);
@@ -1583,6 +1586,7 @@ mod tests {
             assert_eq!(tree.remove(&i), Some(i));
             assert!(!tree.contains(&i));
             assert_eq!(tree.size(), usize::try_from(20 - i).unwrap());
+            assert_eq!(tree.remove(&i), None);
             validate_bst(&tree);
             validate_rbt(&tree);
             validate_order(&tree, &expected_orders[usize::try_from(i - 1).unwrap()]);
@@ -1597,6 +1601,7 @@ mod tests {
             assert_eq!(tree.remove(&i), Some(i));
             assert!(!tree.contains(&i));
             assert_eq!(tree.size(), usize::try_from(20 - i).unwrap());
+            assert_eq!(tree.remove(&i), None);
             validate_bst(&tree);
             validate_rbt(&tree);
             validate_order(&tree, &expected_orders[usize::try_from(i - 1).unwrap()]);
@@ -1615,6 +1620,7 @@ mod tests {
             assert_eq!(tree.remove(&i), Some(i));
             assert!(!tree.contains(&i));
             assert_eq!(tree.size(), usize::try_from(i - 1).unwrap());
+            assert_eq!(tree.remove(&i), None);
             validate_bst(&tree);
             validate_rbt(&tree);
             validate_order(&tree, &expected_orders[usize::try_from(i - 1).unwrap()]);
@@ -1629,6 +1635,7 @@ mod tests {
             assert_eq!(tree.remove(&i), Some(i));
             assert!(!tree.contains(&i));
             assert_eq!(tree.size(), usize::try_from(i - 1).unwrap());
+            assert_eq!(tree.remove(&i), None);
             validate_bst(&tree);
             validate_rbt(&tree);
             validate_order(&tree, &expected_orders[usize::try_from(i - 1).unwrap()]);
@@ -1647,6 +1654,7 @@ mod tests {
             assert_eq!(tree.remove(&i), Some(i));
             assert!(!tree.contains(&i));
             assert_eq!(tree.size(), usize::try_from(i - 1).unwrap());
+            assert_eq!(tree.remove(&i), None);
             validate_bst(&tree);
             validate_rbt(&tree);
             validate_order(&tree, &expected_orders[usize::try_from(i - 1).unwrap()]);
@@ -1660,6 +1668,7 @@ mod tests {
             assert_eq!(tree.remove(&i), Some(i));
             assert!(!tree.contains(&i));
             assert_eq!(tree.size(), usize::try_from(i - 1).unwrap());
+            assert_eq!(tree.remove(&i), None);
             validate_bst(&tree);
             validate_rbt(&tree);
             validate_order(&tree, &expected_orders[usize::try_from(i - 1).unwrap()]);
@@ -1678,6 +1687,7 @@ mod tests {
             assert_eq!(tree.remove(&i), Some(i));
             assert!(!tree.contains(&i));
             assert_eq!(tree.size(), usize::try_from(i - 1).unwrap());
+            assert_eq!(tree.remove(&i), None);
             validate_bst(&tree);
             validate_rbt(&tree);
             validate_order(&tree, &expected_orders[usize::try_from(i - 1).unwrap()]);
@@ -1691,6 +1701,7 @@ mod tests {
             assert_eq!(tree.remove(&i), Some(i));
             assert!(!tree.contains(&i));
             assert_eq!(tree.size(), usize::try_from(i - 1).unwrap());
+            assert_eq!(tree.remove(&i), None);
             validate_bst(&tree);
             validate_rbt(&tree);
             validate_order(&tree, &expected_orders[usize::try_from(i - 1).unwrap()]);
