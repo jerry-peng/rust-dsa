@@ -80,7 +80,7 @@ where
         let non_null_ptr = unsafe { NonNull::new_unchecked(raw_ptr as *mut Link<T>) };
 
         // if parent pointer is none, new link is root which is black, otherwise, link is red
-        let color = if let Some(_) = parent_ptr {
+        let color = if parent_ptr.is_some() {
             Color::Red
         } else {
             Color::Black
@@ -147,7 +147,7 @@ where
         }
     }
 
-    fn get_subtree_min_link(link_ptr: NonNull<Link<T>>) -> NonNull<Link<T>> {
+    fn get_subtree_min_ptr(link_ptr: NonNull<Link<T>>) -> NonNull<Link<T>> {
         let mut curr_ptr = link_ptr;
         while let Some(left_ptr) = unsafe { curr_ptr.read() }.left {
             curr_ptr = left_ptr;
@@ -155,7 +155,7 @@ where
         curr_ptr
     }
 
-    fn get_subtree_max_link(link_ptr: NonNull<Link<T>>) -> NonNull<Link<T>> {
+    fn get_subtree_max_ptr(link_ptr: NonNull<Link<T>>) -> NonNull<Link<T>> {
         let mut curr_ptr = link_ptr;
         while let Some(right_ptr) = unsafe { curr_ptr.read() }.right {
             curr_ptr = right_ptr;
@@ -163,7 +163,7 @@ where
         curr_ptr
     }
 
-    fn get_opt_link_ptr_color(link_ptr: Option<NonNull<Link<T>>>) -> Color {
+    fn get_opt_ptr_color(link_ptr: Option<NonNull<Link<T>>>) -> Color {
         match link_ptr {
             Some(ptr) => unsafe { ptr.read() }.color,
             None => Color::Black,
@@ -244,7 +244,7 @@ where
 
             // uncle may be null
             let uncle_ptr_opt = Link::get_sibling_ptr(parent_ptr);
-            let uncle_color = Link::get_opt_link_ptr_color(uncle_ptr_opt);
+            let uncle_color = Link::get_opt_ptr_color(uncle_ptr_opt);
             // parent is black, grandparent must exist
             let grandparent_ptr = Link::get_parent_ptr(parent_ptr).unwrap();
 
@@ -337,7 +337,7 @@ where
             (None, Some(right_ptr)) => (link_ptr, Some(right_ptr)),
             (Some(left_ptr), None) => (link_ptr, Some(left_ptr)),
             (Some(left_ptr), Some(_)) => {
-                let mut left_max_ptr = Link::get_subtree_max_link(left_ptr);
+                let mut left_max_ptr = Link::get_subtree_max_ptr(left_ptr);
                 let left_max_item = &mut unsafe { left_max_ptr.as_mut() }.item;
                 let link_ptr_item = &mut unsafe { link_ptr.as_mut() }.item;
                 mem::swap(left_max_item, link_ptr_item);
@@ -428,7 +428,7 @@ where
                 BlackToken::SomeLink { link_ptr, .. } => Some(link_ptr),
                 BlackToken::Null { .. } => None,
             };
-            let black_token_color = Link::get_opt_link_ptr_color(black_token_ptr_opt);
+            let black_token_color = Link::get_opt_ptr_color(black_token_ptr_opt);
             let (parent_ptr, black_token_link_type) = match black_token_state {
                 BlackToken::SomeLink {
                     link_ptr,
@@ -478,10 +478,8 @@ where
                             // leaf node's black node count is equal
                             let left_nephew_ptr_opt = Link::get_left_ptr(sibling_ptr);
                             let right_nephew_ptr_opt = Link::get_right_ptr(sibling_ptr);
-                            let left_nephew_color =
-                                Link::get_opt_link_ptr_color(left_nephew_ptr_opt);
-                            let right_nephew_color =
-                                Link::get_opt_link_ptr_color(right_nephew_ptr_opt);
+                            let left_nephew_color = Link::get_opt_ptr_color(left_nephew_ptr_opt);
+                            let right_nephew_color = Link::get_opt_ptr_color(right_nephew_ptr_opt);
                             if left_nephew_color == Color::Black
                                 && right_nephew_color == Color::Black
                             {
@@ -689,16 +687,26 @@ where
         Some(&unsafe { curr_ptr.as_ref() }.item)
     }
 
-    pub fn height(&self) -> usize {
-        todo!()
-    }
-
     pub fn pop_min(&mut self) -> Option<T> {
-        todo!();
+        let root_ptr = self.root?;
+        let min_ptr = Link::get_subtree_min_ptr(root_ptr);
+        let (black_token_opt, item) = self.remove_link(min_ptr);
+        self.size -= 1;
+        if let Some(black_token) = black_token_opt {
+            self.rebalance_removal(black_token);
+        }
+        Some(item)
     }
 
     pub fn pop_max(&mut self) -> Option<T> {
-        todo!();
+        let root_ptr = self.root?;
+        let max_ptr = Link::get_subtree_max_ptr(root_ptr);
+        let (black_token_opt, item) = self.remove_link(max_ptr);
+        self.size -= 1;
+        if let Some(black_token) = black_token_opt {
+            self.rebalance_removal(black_token);
+        }
+        Some(item)
     }
 
     pub fn iter(&self, order: TraversalOrder) -> Iter<T> {
@@ -1100,6 +1108,30 @@ mod tests {
         }
     }
 
+    fn validate_into_order(
+        tree_generator: fn(bool) -> RedBlackTree<i32>,
+        mirror: bool,
+        expected_orders: &Value,
+    ) {
+        let order_types = vec![
+            (TraversalOrder::Level, "level"),
+            (TraversalOrder::In, "in"),
+            (TraversalOrder::Pre, "pre"),
+            (TraversalOrder::Post, "post"),
+        ];
+        for order_type in order_types {
+            let tree = tree_generator(mirror);
+            let actual_order: Vec<i32> = tree.into_iter(order_type.0).collect();
+            let expected_order: Vec<i32> = expected_orders[order_type.1]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|i| i32::try_from(i.as_i64().unwrap()).unwrap())
+                .collect();
+            assert_eq!(actual_order, expected_order);
+        }
+    }
+
     fn read_json_data(filepath: &str) -> Value {
         let insert_order_json_string =
             fs::read_to_string(path::Path::new(filepath)).expect("Unable to read file");
@@ -1130,7 +1162,7 @@ mod tests {
 
     #[test]
     fn test_contains() {
-        // right-tilted tree contains
+        // right-tilted tree
         let tree: RedBlackTree<i32> = new_tilted_tree(false);
         for i in -5..=25 {
             if (1..=20).contains(&i) {
@@ -1139,7 +1171,7 @@ mod tests {
                 assert!(!tree.contains(&i));
             }
         }
-        // left-tilted tree contains
+        // left-tilted tree
         let tree: RedBlackTree<i32> = new_tilted_tree(true);
         for i in -5..=25 {
             if (1..=20).contains(&i) {
@@ -1149,7 +1181,7 @@ mod tests {
             }
         }
 
-        // compact tree contains
+        // compact tree
         let tree: RedBlackTree<i32> = new_compact_tree(false);
         for i in -5..=25 {
             if (1..=20).contains(&i) {
@@ -1158,7 +1190,7 @@ mod tests {
                 assert!(!tree.contains(&i));
             }
         }
-        // compact mirror tree contains
+        // compact mirror tree
         let tree: RedBlackTree<i32> = new_compact_tree(true);
         for i in -5..=25 {
             if (1..=20).contains(&i) {
@@ -1168,7 +1200,7 @@ mod tests {
             }
         }
 
-        // spread tree contains
+        // spread tree
         let tree: RedBlackTree<i32> = new_spread_tree(false);
         for i in -5..=25 {
             if (1..=20).contains(&i) {
@@ -1177,7 +1209,7 @@ mod tests {
                 assert!(!tree.contains(&i));
             }
         }
-        // spread mirror tree contains
+        // spread mirror tree
         let tree: RedBlackTree<i32> = new_spread_tree(false);
         for i in -5..=25 {
             if (1..=20).contains(&i) {
@@ -1456,6 +1488,7 @@ mod tests {
             validate_rbt(&tree);
             validate_order(&tree, &expected_orders[usize::try_from(i - 1).unwrap()]);
         }
+
         // compact mirror tree
         let expected_orders = &order_data["compact_mirror"];
         for i in 1..=20 {
@@ -1490,6 +1523,7 @@ mod tests {
             validate_rbt(&tree);
             validate_order(&tree, &expected_orders[usize::try_from(i - 1).unwrap()]);
         }
+
         // spread mirror tree
         let expected_orders = &order_data["spread_mirror"];
         for i in 1..=20 {
@@ -1509,6 +1543,7 @@ mod tests {
     #[test]
     fn test_remove_all_asc_order_tilted() {
         let order_data = read_json_data("./unit_test_data/rbt_remove_all_asc_orders.json");
+
         // right-tilted tree
         let expected_orders = &order_data["right_tilted"];
         let mut tree = new_tilted_tree(false);
@@ -1543,6 +1578,7 @@ mod tests {
     #[test]
     fn test_remove_all_asc_order_compact() {
         let order_data = read_json_data("./unit_test_data/rbt_remove_all_asc_orders.json");
+
         // compact tree
         let expected_orders = &order_data["compact"];
         let mut tree = new_compact_tree(false);
@@ -1577,6 +1613,7 @@ mod tests {
     #[test]
     fn test_remove_all_asc_order_spread() {
         let order_data = read_json_data("./unit_test_data/rbt_remove_all_asc_orders.json");
+
         // spread tree
         let expected_orders = &order_data["spread"];
         let mut tree = new_spread_tree(false);
@@ -1611,6 +1648,7 @@ mod tests {
     #[test]
     fn test_remove_all_desc_order_tilted() {
         let order_data = read_json_data("./unit_test_data/rbt_remove_all_desc_orders.json");
+
         // right-tilted tree
         let expected_orders = &order_data["right_tilted"];
         let mut tree = new_tilted_tree(false);
@@ -1623,7 +1661,7 @@ mod tests {
             assert_eq!(tree.remove(&i), None);
             validate_bst(&tree);
             validate_rbt(&tree);
-            validate_order(&tree, &expected_orders[usize::try_from(i - 1).unwrap()]);
+            validate_order(&tree, &expected_orders[usize::try_from(20 - i).unwrap()]);
         }
 
         // left-tilted tree
@@ -1638,13 +1676,14 @@ mod tests {
             assert_eq!(tree.remove(&i), None);
             validate_bst(&tree);
             validate_rbt(&tree);
-            validate_order(&tree, &expected_orders[usize::try_from(i - 1).unwrap()]);
+            validate_order(&tree, &expected_orders[usize::try_from(20 - i).unwrap()]);
         }
     }
 
     #[test]
     fn test_remove_all_desc_order_compact() {
         let order_data = read_json_data("./unit_test_data/rbt_remove_all_desc_orders.json");
+
         // compact tree
         let expected_orders = &order_data["compact"];
         let mut tree = new_compact_tree(false);
@@ -1657,8 +1696,9 @@ mod tests {
             assert_eq!(tree.remove(&i), None);
             validate_bst(&tree);
             validate_rbt(&tree);
-            validate_order(&tree, &expected_orders[usize::try_from(i - 1).unwrap()]);
+            validate_order(&tree, &expected_orders[usize::try_from(20 - i).unwrap()]);
         }
+
         // compact mirror tree
         let expected_orders = &order_data["compact_mirror"];
         let mut tree = new_compact_tree(true);
@@ -1671,13 +1711,14 @@ mod tests {
             assert_eq!(tree.remove(&i), None);
             validate_bst(&tree);
             validate_rbt(&tree);
-            validate_order(&tree, &expected_orders[usize::try_from(i - 1).unwrap()]);
+            validate_order(&tree, &expected_orders[usize::try_from(20 - i).unwrap()]);
         }
     }
 
     #[test]
     fn test_remove_all_desc_order_spread() {
         let order_data = read_json_data("./unit_test_data/rbt_remove_all_desc_orders.json");
+
         // spread tree
         let expected_orders = &order_data["spread"];
         let mut tree = new_spread_tree(false);
@@ -1690,8 +1731,9 @@ mod tests {
             assert_eq!(tree.remove(&i), None);
             validate_bst(&tree);
             validate_rbt(&tree);
-            validate_order(&tree, &expected_orders[usize::try_from(i - 1).unwrap()]);
+            validate_order(&tree, &expected_orders[usize::try_from(20 - i).unwrap()]);
         }
+
         // spread mirror tree
         let expected_orders = &order_data["spread_mirror"];
         let mut tree = new_spread_tree(true);
@@ -1704,7 +1746,277 @@ mod tests {
             assert_eq!(tree.remove(&i), None);
             validate_bst(&tree);
             validate_rbt(&tree);
+            validate_order(&tree, &expected_orders[usize::try_from(20 - i).unwrap()]);
+        }
+    }
+
+    #[test]
+    fn test_pop_min_tilted() {
+        let order_data = read_json_data("./unit_test_data/rbt_remove_all_asc_orders.json");
+
+        // right-tilted tree
+        let expected_orders = &order_data["right_tilted"];
+        let mut tree = new_tilted_tree(false);
+        for i in 1..=20 {
+            assert!(tree.contains(&i));
+            assert_eq!(tree.size(), usize::try_from(21 - i).unwrap());
+            assert_eq!(tree.min(), Some(&i));
+            assert_eq!(tree.pop_min(), Some(i));
+            assert!(!tree.contains(&i));
+            assert_eq!(tree.size(), usize::try_from(20 - i).unwrap());
+            assert_eq!(tree.remove(&i), None);
+            validate_bst(&tree);
+            validate_rbt(&tree);
             validate_order(&tree, &expected_orders[usize::try_from(i - 1).unwrap()]);
         }
+        assert_eq!(tree.min(), None);
+        assert_eq!(tree.pop_min(), None);
+
+        // left-tilted tree
+        let expected_orders = &order_data["left_tilted"];
+        let mut tree = new_tilted_tree(true);
+        for i in 1..=20 {
+            assert!(tree.contains(&i));
+            assert_eq!(tree.size(), usize::try_from(21 - i).unwrap());
+            assert_eq!(tree.min(), Some(&i));
+            assert_eq!(tree.pop_min(), Some(i));
+            assert!(!tree.contains(&i));
+            assert_eq!(tree.size(), usize::try_from(20 - i).unwrap());
+            assert_eq!(tree.remove(&i), None);
+            validate_bst(&tree);
+            validate_rbt(&tree);
+            validate_order(&tree, &expected_orders[usize::try_from(i - 1).unwrap()]);
+        }
+        assert_eq!(tree.min(), None);
+        assert_eq!(tree.pop_min(), None);
+    }
+
+    #[test]
+    fn test_pop_min_compact() {
+        let order_data = read_json_data("./unit_test_data/rbt_remove_all_asc_orders.json");
+
+        // compact tree
+        let expected_orders = &order_data["compact"];
+        let mut tree = new_compact_tree(false);
+        for i in 1..=20 {
+            assert!(tree.contains(&i));
+            assert_eq!(tree.size(), usize::try_from(21 - i).unwrap());
+            assert_eq!(tree.min(), Some(&i));
+            assert_eq!(tree.pop_min(), Some(i));
+            assert!(!tree.contains(&i));
+            assert_eq!(tree.size(), usize::try_from(20 - i).unwrap());
+            assert_eq!(tree.remove(&i), None);
+            validate_bst(&tree);
+            validate_rbt(&tree);
+            validate_order(&tree, &expected_orders[usize::try_from(i - 1).unwrap()]);
+        }
+        assert_eq!(tree.min(), None);
+        assert_eq!(tree.pop_min(), None);
+
+        // compact mirror tree
+        let expected_orders = &order_data["compact_mirror"];
+        let mut tree = new_compact_tree(true);
+        for i in 1..=20 {
+            assert!(tree.contains(&i));
+            assert_eq!(tree.size(), usize::try_from(21 - i).unwrap());
+            assert_eq!(tree.min(), Some(&i));
+            assert_eq!(tree.pop_min(), Some(i));
+            assert!(!tree.contains(&i));
+            assert_eq!(tree.size(), usize::try_from(20 - i).unwrap());
+            assert_eq!(tree.remove(&i), None);
+            validate_bst(&tree);
+            validate_rbt(&tree);
+            validate_order(&tree, &expected_orders[usize::try_from(i - 1).unwrap()]);
+        }
+        assert_eq!(tree.min(), None);
+        assert_eq!(tree.pop_min(), None);
+    }
+
+    #[test]
+    fn test_pop_min_spread() {
+        let order_data = read_json_data("./unit_test_data/rbt_remove_all_asc_orders.json");
+
+        // spread tree
+        let expected_orders = &order_data["spread"];
+        let mut tree = new_spread_tree(false);
+        for i in 1..=20 {
+            assert!(tree.contains(&i));
+            assert_eq!(tree.size(), usize::try_from(21 - i).unwrap());
+            assert_eq!(tree.min(), Some(&i));
+            assert_eq!(tree.pop_min(), Some(i));
+            assert!(!tree.contains(&i));
+            assert_eq!(tree.size(), usize::try_from(20 - i).unwrap());
+            assert_eq!(tree.remove(&i), None);
+            validate_bst(&tree);
+            validate_rbt(&tree);
+            validate_order(&tree, &expected_orders[usize::try_from(i - 1).unwrap()]);
+        }
+        assert_eq!(tree.min(), None);
+        assert_eq!(tree.pop_min(), None);
+
+        // spread mirror tree
+        let expected_orders = &order_data["spread_mirror"];
+        let mut tree = new_spread_tree(true);
+        for i in 1..=20 {
+            assert!(tree.contains(&i));
+            assert_eq!(tree.size(), usize::try_from(21 - i).unwrap());
+            assert_eq!(tree.min(), Some(&i));
+            assert_eq!(tree.pop_min(), Some(i));
+            assert!(!tree.contains(&i));
+            assert_eq!(tree.size(), usize::try_from(20 - i).unwrap());
+            assert_eq!(tree.remove(&i), None);
+            validate_bst(&tree);
+            validate_rbt(&tree);
+            validate_order(&tree, &expected_orders[usize::try_from(i - 1).unwrap()]);
+        }
+        assert_eq!(tree.min(), None);
+        assert_eq!(tree.pop_min(), None);
+    }
+
+    #[test]
+    fn test_pop_max_tilted() {
+        let order_data = read_json_data("./unit_test_data/rbt_remove_all_desc_orders.json");
+
+        // right-tilted tree
+        let expected_orders = &order_data["right_tilted"];
+        let mut tree = new_tilted_tree(false);
+        for i in (1..=20).rev() {
+            assert!(tree.contains(&i));
+            assert_eq!(tree.size(), usize::try_from(i).unwrap());
+            assert_eq!(tree.max(), Some(&i));
+            assert_eq!(tree.pop_max(), Some(i));
+            assert!(!tree.contains(&i));
+            assert_eq!(tree.size(), usize::try_from(i - 1).unwrap());
+            assert_eq!(tree.remove(&i), None);
+            validate_bst(&tree);
+            validate_rbt(&tree);
+            validate_order(&tree, &expected_orders[usize::try_from(20 - i).unwrap()]);
+        }
+        assert_eq!(tree.max(), None);
+        assert_eq!(tree.pop_max(), None);
+
+        // left-tilted tree
+        let expected_orders = &order_data["left_tilted"];
+        let mut tree = new_tilted_tree(true);
+        for i in (1..=20).rev() {
+            assert!(tree.contains(&i));
+            assert_eq!(tree.size(), usize::try_from(i).unwrap());
+            assert_eq!(tree.max(), Some(&i));
+            assert_eq!(tree.pop_max(), Some(i));
+            assert!(!tree.contains(&i));
+            assert_eq!(tree.size(), usize::try_from(i - 1).unwrap());
+            assert_eq!(tree.remove(&i), None);
+            validate_bst(&tree);
+            validate_rbt(&tree);
+            validate_order(&tree, &expected_orders[usize::try_from(20 - i).unwrap()]);
+        }
+        assert_eq!(tree.max(), None);
+        assert_eq!(tree.pop_max(), None);
+    }
+
+    #[test]
+    fn test_pop_max_compact() {
+        let order_data = read_json_data("./unit_test_data/rbt_remove_all_desc_orders.json");
+
+        // compact tree
+        let expected_orders = &order_data["compact"];
+        let mut tree = new_compact_tree(false);
+        for i in (1..=20).rev() {
+            assert!(tree.contains(&i));
+            assert_eq!(tree.size(), usize::try_from(i).unwrap());
+            assert_eq!(tree.max(), Some(&i));
+            assert_eq!(tree.pop_max(), Some(i));
+            assert!(!tree.contains(&i));
+            assert_eq!(tree.size(), usize::try_from(i - 1).unwrap());
+            assert_eq!(tree.remove(&i), None);
+            validate_bst(&tree);
+            validate_rbt(&tree);
+            validate_order(&tree, &expected_orders[usize::try_from(20 - i).unwrap()]);
+        }
+        assert_eq!(tree.max(), None);
+        assert_eq!(tree.pop_max(), None);
+
+        // compact mirror tree
+        let expected_orders = &order_data["compact_mirror"];
+        let mut tree = new_compact_tree(true);
+        for i in (1..=20).rev() {
+            assert!(tree.contains(&i));
+            assert_eq!(tree.size(), usize::try_from(i).unwrap());
+            assert_eq!(tree.max(), Some(&i));
+            assert_eq!(tree.pop_max(), Some(i));
+            assert!(!tree.contains(&i));
+            assert_eq!(tree.size(), usize::try_from(i - 1).unwrap());
+            assert_eq!(tree.remove(&i), None);
+            validate_bst(&tree);
+            validate_rbt(&tree);
+            validate_order(&tree, &expected_orders[usize::try_from(20 - i).unwrap()]);
+        }
+        assert_eq!(tree.max(), None);
+        assert_eq!(tree.pop_max(), None);
+    }
+
+    #[test]
+    fn test_pop_max_spread() {
+        let order_data = read_json_data("./unit_test_data/rbt_remove_all_desc_orders.json");
+
+        // spread tree
+        let expected_orders = &order_data["spread"];
+        let mut tree = new_spread_tree(false);
+        for i in (1..=20).rev() {
+            assert!(tree.contains(&i));
+            assert_eq!(tree.size(), usize::try_from(i).unwrap());
+            assert_eq!(tree.max(), Some(&i));
+            assert_eq!(tree.pop_max(), Some(i));
+            assert!(!tree.contains(&i));
+            assert_eq!(tree.size(), usize::try_from(i - 1).unwrap());
+            assert_eq!(tree.remove(&i), None);
+            validate_bst(&tree);
+            validate_rbt(&tree);
+            validate_order(&tree, &expected_orders[usize::try_from(20 - i).unwrap()]);
+        }
+        assert_eq!(tree.max(), None);
+        assert_eq!(tree.pop_max(), None);
+
+        // spread mirror tree
+        let expected_orders = &order_data["spread_mirror"];
+        let mut tree = new_spread_tree(true);
+        for i in (1..=20).rev() {
+            assert!(tree.contains(&i));
+            assert_eq!(tree.size(), usize::try_from(i).unwrap());
+            assert_eq!(tree.max(), Some(&i));
+            assert_eq!(tree.pop_max(), Some(i));
+            assert!(!tree.contains(&i));
+            assert_eq!(tree.size(), usize::try_from(i - 1).unwrap());
+            assert_eq!(tree.remove(&i), None);
+            validate_bst(&tree);
+            validate_rbt(&tree);
+            validate_order(&tree, &expected_orders[usize::try_from(20 - i).unwrap()]);
+        }
+        assert_eq!(tree.max(), None);
+        assert_eq!(tree.pop_max(), None);
+    }
+
+    // #[test]
+    // fn test_into_iter_tilted() {
+    //     let order_data = read_json_data("./unit_test_data/rbt_insert_orders.json");
+    //
+    //     // right-tilted tree
+    //     let expected_orders = &order_data["left_tilted"];
+    //     validate_into_order(new_tilted_tree, false, &expected_orders[19]);
+    //
+    //     // left-tilted tree
+    //     let mut tree = new_tilted_tree(true);
+    //     let expected_orders = &order_data["right_tilted"];
+    //     validate_into_order(new_tilted_tree, true, &expected_orders[19]);
+    // }
+
+    #[test]
+    fn test_into_iter_compact() {
+        let order_data = read_json_data("./unit_test_data/rbt_insert_orders.json");
+    }
+
+    #[test]
+    fn test_into_iter_spread() {
+        let order_data = read_json_data("./unit_test_data/rbt_insert_orders.json");
     }
 }
