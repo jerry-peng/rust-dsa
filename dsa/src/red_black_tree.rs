@@ -1,3 +1,5 @@
+//! Red-black tree implementation
+
 use std::cmp::Ordering;
 use std::collections::VecDeque;
 use std::fmt::Debug;
@@ -6,8 +8,10 @@ use std::ptr::NonNull;
 use std::{alloc, vec};
 
 #[derive(Debug, PartialEq)]
+/// Thrown after attempts to insert duplicate item
 pub struct DuplicateItemErr;
 
+/// Iterator traversal order
 #[derive(Debug)]
 pub enum TraversalOrder {
     Level,
@@ -16,14 +20,18 @@ pub enum TraversalOrder {
     Post,
 }
 
+/// Tree node color
 #[derive(Debug, PartialEq)]
 enum Color {
     Red,
     Black,
 }
 
+/// Node type in relation to parent.
+/// A node can be left child node, right child node,
+/// or root node with no parent node
 #[derive(Debug, PartialEq)]
-enum LinkType {
+enum NodeType {
     Left,
     Right,
     Root,
@@ -31,140 +39,181 @@ enum LinkType {
 
 #[derive(Debug)]
 pub struct RedBlackTree<T> {
-    root: Option<NonNull<Link<T>>>,
+    root: Option<NonNull<Node<T>>>,
     size: usize,
 }
 
-/// Link struct, a node wrapper.
-/// In context of red-black tree, an empty node with no item is a leaf node,
-/// otherwise it's a branch node. In my implementation, node is wrapped in link
-/// and leaf link contains no node, while branch link contains a node.
-///
-/// * `color`: color of link; new branch link are red, leaf link are black
-/// * `parent`: parent link; empty if link is root
-/// * `node`: node; empty for leaf link
 #[derive(Debug, PartialEq)]
-pub struct Link<T> {
+/// Tree node structure
+///
+/// * `color`: node color (red/black)
+/// * `parent`: optional pointer to parent node, parent is None for root node
+/// * `item`: node item
+/// * `left`: optional pointer to left child node
+/// * `right`: optional pointer to right child node
+pub struct Node<T> {
     color: Color,
-    parent: Option<NonNull<Link<T>>>,
+    parent: Option<NonNull<Node<T>>>,
     item: T,
-    left: Option<NonNull<Link<T>>>,
-    right: Option<NonNull<Link<T>>>,
+    left: Option<NonNull<Node<T>>>,
+    right: Option<NonNull<Node<T>>>,
 }
 
-enum BlackToken<T> {
-    SomeLink {
-        link_ptr: NonNull<Link<T>>,
-        link_type: LinkType,
+/// Black token state for removal operation.
+/// If black token is on a node, save node type and pointer to node
+/// else, black token is on a null node, save null node type and pointer to parent node
+#[derive(Debug, PartialEq)]
+enum BlackTokenState<T> {
+    SomeNode {
+        node_ptr: NonNull<Node<T>>,
+        node_type: NodeType,
     },
     Null {
-        parent_ptr: NonNull<Link<T>>,
-        link_type: LinkType,
+        parent_ptr: NonNull<Node<T>>,
+        node_type: NodeType,
     },
 }
 
-impl<T> Link<T>
+impl<T> Node<T>
 where
     T: Debug + PartialEq,
 {
-    fn new_link(parent_ptr: Option<NonNull<Link<T>>>, item: T) -> NonNull<Link<T>> {
-        // create memory layout for a single link
-        let layout = alloc::Layout::new::<Link<T>>();
+    /// Create new node with heap allocation
+    ///
+    /// * `parent_ptr`: optional pointer to parent node for the new node
+    /// * `item`: item in new node
+    fn new_node(parent_ptr: Option<NonNull<Node<T>>>, item: T) -> NonNull<Node<T>> {
+        // create memory layout for a single node
+        let layout = alloc::Layout::new::<Node<T>>();
         // allocate memory
         let raw_ptr = unsafe { alloc::alloc(layout) };
         // if memory allocation fails, signal error
         if raw_ptr.is_null() {
             alloc::handle_alloc_error(layout);
         }
-        // create non-null pointer, write link, and return pointer
-        let non_null_ptr = unsafe { NonNull::new_unchecked(raw_ptr as *mut Link<T>) };
+        // create non-null pointer
+        let non_null_ptr = unsafe { NonNull::new_unchecked(raw_ptr as *mut Node<T>) };
 
-        // if parent pointer is none, new link is root which is black, otherwise, link is red
+        // new nodes are red except for root node
         let color = if parent_ptr.is_some() {
             Color::Red
         } else {
             Color::Black
         };
 
-        let link = Link {
+        // write node and return pointer
+        let node = Node {
             color,
             parent: parent_ptr,
             item,
             left: None,
             right: None,
         };
-        unsafe { non_null_ptr.write(link) };
+        unsafe { non_null_ptr.write(node) };
         non_null_ptr
     }
 
-    fn is_root(link_ptr: NonNull<Link<T>>) -> bool {
-        unsafe { link_ptr.read() }.parent.is_none()
+    /// Check if node is root node
+    ///
+    /// * `node_ptr`: pointer to node
+    fn is_root(node_ptr: NonNull<Node<T>>) -> bool {
+        // only root node's parent is None
+        unsafe { node_ptr.read() }.parent.is_none()
     }
 
-    fn get_link_type(link_ptr: NonNull<Link<T>>) -> LinkType {
-        let link = unsafe { link_ptr.read() };
-        match link.parent {
+    /// Get node type (Left/Right/Root)
+    ///
+    /// * `node_ptr`: pointer to node
+    fn get_node_type(node_ptr: NonNull<Node<T>>) -> NodeType {
+        let node = unsafe { node_ptr.read() };
+        match node.parent {
             Some(parent_ptr) => {
+                // return node type depending on whether node
+                // is parent's left or right child node
                 let parent = unsafe { parent_ptr.read() };
                 if let Some(left) = parent.left
-                    && link_ptr == left
+                    && node_ptr == left
                 {
-                    LinkType::Left
+                    NodeType::Left
                 } else if let Some(right) = parent.right
-                    && link_ptr == right
+                    && node_ptr == right
                 {
-                    LinkType::Right
+                    NodeType::Right
                 } else {
                     unreachable!(
-                        "Mislink between parent and child; parent: [{:?}]; child: [{:?}]",
-                        parent, link
+                        "Node mislink with parent; node: [{:?}]; parent: [{:?}]",
+                        node, parent
                     );
                 }
             }
-            None => LinkType::Root,
+            // only root node's parent is None
+            None => NodeType::Root,
         }
     }
 
-    fn get_left_ptr(link_ptr: NonNull<Link<T>>) -> Option<NonNull<Link<T>>> {
-        unsafe { link_ptr.read() }.left
+    /// Get optional pointer to left child node
+    ///
+    /// * `node_ptr`: pointer to node
+    fn get_left_ptr(node_ptr: NonNull<Node<T>>) -> Option<NonNull<Node<T>>> {
+        unsafe { node_ptr.read() }.left
     }
 
-    fn get_right_ptr(link_ptr: NonNull<Link<T>>) -> Option<NonNull<Link<T>>> {
-        unsafe { link_ptr.read() }.right
+    /// Get optional pointer to right child node
+    ///
+    /// * `node_ptr`: pointer to node
+    fn get_right_ptr(node_ptr: NonNull<Node<T>>) -> Option<NonNull<Node<T>>> {
+        unsafe { node_ptr.read() }.right
     }
 
-    fn get_parent_ptr(link_ptr: NonNull<Link<T>>) -> Option<NonNull<Link<T>>> {
-        unsafe { link_ptr.read() }.parent
+    /// Get optional pointer to parent node
+    ///
+    /// * `node_ptr`: pointer to node
+    fn get_parent_ptr(node_ptr: NonNull<Node<T>>) -> Option<NonNull<Node<T>>> {
+        unsafe { node_ptr.read() }.parent
     }
 
-    fn get_sibling_ptr(link_ptr: NonNull<Link<T>>) -> Option<NonNull<Link<T>>> {
-        let link_type = Link::get_link_type(link_ptr);
-        let link = unsafe { link_ptr.read() };
-        match link_type {
-            LinkType::Left => Link::get_right_ptr(link.parent.unwrap()),
-            LinkType::Right => Link::get_left_ptr(link.parent.unwrap()),
-            LinkType::Root => None,
+    /// Get optional pointer to sibling node
+    ///
+    /// * `parent_node_ptr`: pointer to parent node
+    /// * `child_node_type`: node type of current child node, can only be Left/Right node type.
+    fn get_sibling_ptr(
+        parent_node_ptr: NonNull<Node<T>>,
+        child_node_type: &NodeType,
+    ) -> Option<NonNull<Node<T>>> {
+        match child_node_type {
+            NodeType::Left => Node::get_right_ptr(parent_node_ptr),
+            NodeType::Right => Node::get_left_ptr(parent_node_ptr),
+            NodeType::Root => unreachable!("Child node type cannot be root"),
         }
     }
 
-    fn get_subtree_min_ptr(link_ptr: NonNull<Link<T>>) -> NonNull<Link<T>> {
-        let mut curr_ptr = link_ptr;
+    /// Get pointer to min node within subtree
+    ///
+    /// * `subtree_root_ptr`: pointer to subtree root
+    fn get_subtree_min_ptr(subtree_root_ptr: NonNull<Node<T>>) -> NonNull<Node<T>> {
+        let mut curr_ptr = subtree_root_ptr;
         while let Some(left_ptr) = unsafe { curr_ptr.read() }.left {
             curr_ptr = left_ptr;
         }
         curr_ptr
     }
 
-    fn get_subtree_max_ptr(link_ptr: NonNull<Link<T>>) -> NonNull<Link<T>> {
-        let mut curr_ptr = link_ptr;
+    /// Get pointer to max node within subtree
+    ///
+    /// * `subtree_root_ptr`: pointer to subtree root
+    fn get_subtree_max_ptr(subtree_root_ptr: NonNull<Node<T>>) -> NonNull<Node<T>> {
+        let mut curr_ptr = subtree_root_ptr;
         while let Some(right_ptr) = unsafe { curr_ptr.read() }.right {
             curr_ptr = right_ptr;
         }
         curr_ptr
     }
 
-    fn get_opt_ptr_color(link_ptr: Option<NonNull<Link<T>>>) -> Color {
-        match link_ptr {
+    /// Get color of node; null node is black
+    ///
+    /// * `node_ptr`: pointer to node
+    fn get_node_color(node_ptr: Option<NonNull<Node<T>>>) -> Color {
+        match node_ptr {
             Some(ptr) => unsafe { ptr.read() }.color,
             None => Color::Black,
         }
@@ -175,6 +224,16 @@ impl<T> RedBlackTree<T>
 where
     T: Ord + Debug,
 {
+    /// Create new empty red-black tree
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use dsa::red_black_tree::RedBlackTree;
+    /// let mut tree: RedBlackTree<i32> = RedBlackTree::new();
+    /// assert_eq!(tree.size(), 0);
+    /// assert!(tree.is_empty());
+    /// ```
     pub fn new() -> RedBlackTree<T> {
         RedBlackTree {
             root: None,
@@ -182,113 +241,195 @@ where
         }
     }
 
+    /// Get number of nodes in red-black tree
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use dsa::red_black_tree::RedBlackTree;
+    /// let mut tree: RedBlackTree<i32> = RedBlackTree::new();
+    /// assert_eq!(tree.size(), 0);
+    /// tree.insert(5);
+    /// assert_eq!(tree.size(), 1);
+    /// tree.remove(&5);
+    /// assert_eq!(tree.size(), 0);
+    /// ```
     pub fn size(&self) -> usize {
         self.size
     }
 
+    /// Get whether tree is empty
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use dsa::red_black_tree::RedBlackTree;
+    /// let mut tree: RedBlackTree<i32> = RedBlackTree::new();
+    /// assert!(tree.is_empty());
+    /// tree.insert(5);
+    /// assert!(!tree.is_empty());
+    /// tree.remove(&5);
+    /// assert!(tree.is_empty());
+    /// ```
     pub fn is_empty(&self) -> bool {
         self.size == 0
     }
 
+    /// Insert item to tree
+    ///
+    /// * `item`: item to insert
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use dsa::red_black_tree::{RedBlackTree, DuplicateItemErr};
+    /// let mut tree: RedBlackTree<i32> = RedBlackTree::new();
+    /// assert!(!tree.contains(&5));
+    /// assert_eq!(tree.insert(5), Ok(()));
+    /// assert!(tree.contains(&5));
+    /// assert_eq!(tree.insert(5), Err(DuplicateItemErr));
+    /// ```
     pub fn insert(&mut self, item: T) -> Result<(), DuplicateItemErr> {
         let mut curr_ptr = match self.root {
             Some(root_ptr) => root_ptr,
             None => {
-                self.root = Some(Link::new_link(None, item));
-                self.size += 1;
+                // if tree is empty, assign root to new node and return
+                self.root = Some(Node::new_node(None, item));
+                // increment tree size
+                self.size = 1;
                 return Ok(());
             }
         };
 
+        // traverse to leaf node and insert new node
         loop {
-            let mut curr_link = unsafe { curr_ptr.read() };
-            match curr_link.item.cmp(&item) {
+            let mut curr_node = unsafe { curr_ptr.read() };
+            match curr_node.item.cmp(&item) {
                 Ordering::Greater => {
-                    if let Some(left_ptr) = curr_link.left {
+                    if let Some(left_ptr) = curr_node.left {
+                        // continue traversal if there is left child node
                         curr_ptr = left_ptr;
                     } else {
-                        let new_link_ptr = Link::new_link(Some(curr_ptr), item);
-                        curr_link.left = Some(new_link_ptr);
-                        unsafe { curr_ptr.write(curr_link) };
-                        curr_ptr = new_link_ptr;
+                        // attach new node as left child
+                        let new_node_ptr = Node::new_node(Some(curr_ptr), item);
+                        curr_node.left = Some(new_node_ptr);
+                        unsafe { curr_ptr.write(curr_node) };
+                        curr_ptr = new_node_ptr;
                         break;
                     }
                 }
                 Ordering::Less => {
-                    if let Some(right_ptr) = curr_link.right {
+                    if let Some(right_ptr) = curr_node.right {
+                        // continue traversal if there is right child node
                         curr_ptr = right_ptr;
                     } else {
-                        let new_link_ptr = Link::new_link(Some(curr_ptr), item);
-                        curr_link.right = Some(new_link_ptr);
-                        unsafe { curr_ptr.write(curr_link) };
-                        curr_ptr = new_link_ptr;
+                        // attach new node as right child
+                        let new_node_ptr = Node::new_node(Some(curr_ptr), item);
+                        curr_node.right = Some(new_node_ptr);
+                        unsafe { curr_ptr.write(curr_node) };
+                        curr_ptr = new_node_ptr;
                         break;
                     }
                 }
+                // return duplicate item error since it's not allowed
                 Ordering::Equal => return Err(DuplicateItemErr),
             }
         }
 
-        self.rebalance_insertion(curr_ptr);
+        // rebalance after insert item;
+        // current node pointer should point to new node, and new node cannot be root
+        self.insertion_rebalance(curr_ptr);
+        // increment tree size
         self.size += 1;
         Ok(())
     }
 
-    fn rebalance_insertion(&mut self, mut curr_ptr: NonNull<Link<T>>) {
-        while !Link::is_root(curr_ptr) {
-            let parent_ptr = Link::get_parent_ptr(curr_ptr).unwrap();
+    /// rebalance tree after insertion
+    ///
+    /// * `curr_ptr`: pointer to newly inserted node
+    fn insertion_rebalance(&mut self, mut curr_ptr: NonNull<Node<T>>) {
+        // rebalance stops when current node pointer points to root
+        while !Node::is_root(curr_ptr) {
+            // NOTE: - current node is not root, therefore:
+            //       - parent node must exist
+            //
+            // We can safely unwrap parent.
+            let parent_ptr = Node::get_parent_ptr(curr_ptr).unwrap();
             let mut parent = unsafe { parent_ptr.read() };
+            let parent_node_type = Node::get_node_type(parent_ptr);
+
+            // NOTE: current node is RED
+            //
+            // There are 2 scenarios, either current node is newly-inserted,
+            // or current node is previous loop iteration's grandparent node
+            // due to re-paint. In both cases, current node is red.
+            // If parent node is black, there is no red-black violation,
+            // rebalance is complete.
             if parent.color == Color::Black {
                 break;
             }
 
-            // uncle may be null
-            let uncle_ptr_opt = Link::get_sibling_ptr(parent_ptr);
-            let uncle_color = Link::get_opt_ptr_color(uncle_ptr_opt);
-            // parent is black, grandparent must exist
-            let grandparent_ptr = Link::get_parent_ptr(parent_ptr).unwrap();
+            // NOTE: - parent node must be RED; so parent cannot be root node
+            //       - grandparent node must exist and must be black
+            //
+            // we can unwrap grandparent node safely
+            let grandparent_ptr = Node::get_parent_ptr(parent_ptr).unwrap();
 
-            match uncle_color {
+            // NOTE: uncle node can be null
+            let uncle_ptr_opt = Node::get_sibling_ptr(grandparent_ptr, &parent_node_type);
+
+            match Node::get_node_color(uncle_ptr_opt) {
                 Color::Red => {
+                    // NOTE: - uncle node is RED, therefore
+                    //       - uncle node is not null, and
+                    //       - grandparent must be black
+                    let uncle_ptr = uncle_ptr_opt.unwrap();
+                    let mut uncle = unsafe { uncle_ptr.read() };
+
+                    // repaint uncle and parent node to black
+                    uncle.color = Color::Black;
+                    unsafe { uncle_ptr.write(uncle) };
                     parent.color = Color::Black;
                     unsafe { parent_ptr.write(parent) };
 
-                    // uncle must exist if uncle is colored red
-                    let uncle_ptr = uncle_ptr_opt.unwrap();
-                    let mut uncle = unsafe { uncle_ptr.read() };
-                    uncle.color = Color::Black;
-                    unsafe { uncle_ptr.write(uncle) };
-
-                    if !Link::is_root(grandparent_ptr) {
+                    // if grandparent is not root, re-paint it red
+                    if !Node::is_root(grandparent_ptr) {
                         let mut grandparent = unsafe { grandparent_ptr.read() };
                         grandparent.color = Color::Red;
                         unsafe { grandparent_ptr.write(grandparent) };
-                        curr_ptr = grandparent_ptr;
-                    } else {
-                        break;
                     }
+
+                    // resume rebalancing at grandparent node;
+                    // loop will halt of grandparent node is root
+                    curr_ptr = grandparent_ptr;
                 }
                 Color::Black => {
-                    match (
-                        Link::get_link_type(curr_ptr),
-                        Link::get_link_type(parent_ptr),
-                    ) {
-                        (LinkType::Left, LinkType::Left) => {
+                    // uncle is black, rotate/swap color to rebalance
+                    let curr_node_type = Node::get_node_type(curr_ptr);
+                    match (&curr_node_type, &parent_node_type) {
+                        (NodeType::Left, NodeType::Left) => {
                             self.subtree_rotate_right(grandparent_ptr, true)
                         }
-                        (LinkType::Right, LinkType::Right) => {
+                        (NodeType::Right, NodeType::Right) => {
                             self.subtree_rotate_left(grandparent_ptr, true)
                         }
-                        (LinkType::Left, LinkType::Right) => {
+                        (NodeType::Left, NodeType::Right) => {
                             self.subtree_rotate_right(parent_ptr, false);
                             self.subtree_rotate_left(grandparent_ptr, true);
                         }
-                        (LinkType::Right, LinkType::Left) => {
+                        (NodeType::Right, NodeType::Left) => {
                             self.subtree_rotate_left(parent_ptr, false);
                             self.subtree_rotate_right(grandparent_ptr, true);
                         }
-                        // TODO update message
-                        _ => unreachable!("curr and parent cannot possibly be root"),
+                        _ => unreachable!(
+                            "Current node and parent node cannot be root node; \
+                                current node type: [{:?}]; parent node type: [{:?}]; \
+                                current node [{:?}]; parent node [{:?}]",
+                            curr_node_type,
+                            parent_node_type,
+                            unsafe { curr_ptr.read() },
+                            parent
+                        ),
                     };
                     break;
                 }
@@ -296,21 +437,38 @@ where
         }
     }
 
+    /// Remove node with item, and return item
+    ///
+    /// * `item`: item to remove
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use dsa::red_black_tree::{RedBlackTree, DuplicateItemErr};
+    /// let mut tree: RedBlackTree<i32> = RedBlackTree::new();
+    /// tree.insert(5);
+    /// assert!(tree.contains(&5));
+    /// tree.remove(&5);
+    /// assert!(!tree.contains(&5));
+    /// ```
     pub fn remove(&mut self, item: &T) -> Option<T> {
+        // if tree is empty, return None
         let mut curr_ptr = self.root?;
 
+        // find node with same item;
+        // if leaf node is reached but no node with item found, return None
         loop {
-            let curr_link = unsafe { curr_ptr.read() };
-            match curr_link.item.cmp(item) {
+            let curr_node = unsafe { curr_ptr.read() };
+            match curr_node.item.cmp(item) {
                 Ordering::Greater => {
-                    if let Some(left_ptr) = curr_link.left {
+                    if let Some(left_ptr) = curr_node.left {
                         curr_ptr = left_ptr;
                     } else {
                         return None;
                     }
                 }
                 Ordering::Less => {
-                    if let Some(right_ptr) = curr_link.right {
+                    if let Some(right_ptr) = curr_node.right {
                         curr_ptr = right_ptr;
                     } else {
                         return None;
@@ -320,63 +478,89 @@ where
             }
         }
 
-        let (black_token_opt, item) = self.remove_link(curr_ptr);
+        // remove node, and receive contained item, and optional black token
+        let (black_token_state_opt, item) = self.remove_node(curr_ptr);
+        // decrement tree size
         self.size -= 1;
-        if let Some(black_token) = black_token_opt {
-            self.rebalance_removal(black_token);
+        // if black token is present, rebalance the tree
+        if let Some(black_token_state) = black_token_state_opt {
+            self.removal_rebalance(black_token_state);
         }
         Some(item)
     }
 
-    fn remove_link(&mut self, mut link_ptr: NonNull<Link<T>>) -> (Option<BlackToken<T>>, T) {
-        let right_ptr_opt = Link::get_right_ptr(link_ptr);
-        let left_ptr_opt = Link::get_left_ptr(link_ptr);
+    /// Remove node, and reconnect child/parent node of removed node.
+    ///
+    /// * `node_ptr`: pointer to node to be removed
+    fn remove_node(
+        &mut self,
+        mut removal_node_ptr: NonNull<Node<T>>,
+    ) -> (Option<BlackTokenState<T>>, T) {
+        let right_ptr_opt = Node::get_right_ptr(removal_node_ptr);
+        let left_ptr_opt = Node::get_left_ptr(removal_node_ptr);
 
+        // Similar to removal operation in BST, when the node to remove has 0 or 1
+        // child node, just reconnect removal node's parent and child;
+        // if removal node has 2 child, swap node item with its predecessor (max node
+        // in subtree with left child as root), and remove the predecessor node instead.
         let (removal_ptr, child_ptr_opt) = match (left_ptr_opt, right_ptr_opt) {
-            (None, None) => (link_ptr, None),
-            (None, Some(right_ptr)) => (link_ptr, Some(right_ptr)),
-            (Some(left_ptr), None) => (link_ptr, Some(left_ptr)),
+            (None, None) => (removal_node_ptr, None),
+            (None, Some(right_ptr)) => (removal_node_ptr, Some(right_ptr)),
+            (Some(left_ptr), None) => (removal_node_ptr, Some(left_ptr)),
             (Some(left_ptr), Some(_)) => {
-                let mut left_max_ptr = Link::get_subtree_max_ptr(left_ptr);
-                let left_max_item = &mut unsafe { left_max_ptr.as_mut() }.item;
-                let link_ptr_item = &mut unsafe { link_ptr.as_mut() }.item;
-                mem::swap(left_max_item, link_ptr_item);
-                (left_max_ptr, unsafe { left_max_ptr.read() }.left)
+                let mut predecessor_ptr = Node::get_subtree_max_ptr(left_ptr);
+                let predecessor_item = &mut unsafe { predecessor_ptr.as_mut() }.item;
+                let removal_node_item = &mut unsafe { removal_node_ptr.as_mut() }.item;
+                mem::swap(predecessor_item, removal_node_item);
+                // Predecessor should be the right-most child of subtree,
+                // so it should only have left child.
+                (predecessor_ptr, unsafe { predecessor_ptr.read() }.left)
             }
         };
 
-        let removal_link = unsafe { removal_ptr.read() };
+        let removal_node = unsafe { removal_ptr.read() };
+        let removal_node_type = Node::get_node_type(removal_ptr);
 
-        let removal_link_type = Link::get_link_type(removal_ptr);
-        match removal_link_type {
-            LinkType::Left => {
-                let parent_ptr = removal_link.parent.unwrap();
+        match removal_node_type {
+            NodeType::Left => {
+                // removal node type is not root, so must have parent,
+                // can safely unwrap here
+                let parent_ptr = removal_node.parent.unwrap();
                 let mut parent = unsafe { parent_ptr.read() };
                 parent.left = child_ptr_opt;
                 unsafe {
                     parent_ptr.write(parent);
                 };
+                // if optional child pointer points to a node,
+                // connect it to parent
                 if let Some(child_ptr) = child_ptr_opt {
                     let mut child = unsafe { child_ptr.read() };
                     child.parent = Some(parent_ptr);
                     unsafe { child_ptr.write(child) };
                 }
             }
-            LinkType::Right => {
-                let parent_ptr = removal_link.parent.unwrap();
+            NodeType::Right => {
+                // removal node type is not root, so must have parent,
+                // can safely unwrap here
+                let parent_ptr = removal_node.parent.unwrap();
                 let mut parent = unsafe { parent_ptr.read() };
                 parent.right = child_ptr_opt;
                 unsafe {
                     parent_ptr.write(parent);
                 };
+                // if optional child pointer points to a node,
+                // connect it to parent
                 if let Some(child_ptr) = child_ptr_opt {
                     let mut child = unsafe { child_ptr.read() };
                     child.parent = Some(parent_ptr);
                     unsafe { child_ptr.write(child) };
                 }
             }
-            LinkType::Root => {
+            NodeType::Root => {
                 self.root = child_ptr_opt;
+                // if optional child pointer points to a node,
+                // the child node becomes root, set parent to None,
+                // and color it black.
                 if let Some(child_ptr) = child_ptr_opt {
                     let mut child = unsafe { child_ptr.read() };
                     child.parent = None;
@@ -386,148 +570,189 @@ where
             }
         }
 
-        let black_token_opt = match removal_link.color {
+        // If removed node is red, red-black property is not violated,
+        // no rebalancing required.
+        // Otherwise, red-black property is violated due to different
+        // black node heights among leaf nodes, place black token on
+        // removed node's replacement node (can be null)
+        let black_token_state_opt = match removal_node.color {
             Color::Red => None,
             Color::Black => match child_ptr_opt {
-                Some(child_ptr) => Some(BlackToken::SomeLink {
-                    link_ptr: child_ptr,
-                    link_type: removal_link_type,
+                // if removed node is replaced by an actual node,
+                // record node pointer and its node type
+                Some(child_ptr) => Some(BlackTokenState::SomeNode {
+                    node_ptr: child_ptr,
+                    node_type: removal_node_type,
                 }),
-                None => match removal_link.parent {
-                    Some(parent) => Some(BlackToken::Null {
+                // if removed node becomes null, and the removed node was not root (had parent),
+                // record parent pointer and removed node's node type
+                None => match removal_node.parent {
+                    Some(parent) => Some(BlackTokenState::Null {
                         parent_ptr: parent,
-                        link_type: removal_link_type,
+                        node_type: removal_node_type,
                     }),
-                    // removed link has no child or parent, the tree is empty
+                    // removed node with no child/parent, so it's the last node in tree,
+                    // the tree is empty after removal, rebalancing is not needed.
                     None => None,
                 },
             },
         };
 
-        // drop links
+        // get item from removed node, then drop node to prevent memory leak
         let item = unsafe {
-            let boxed_removal_link = Box::from_raw(removal_ptr.as_ptr());
-            boxed_removal_link.item
+            // once pointer is converted to box, it'll be drop at the end of scope.
+            let boxed_removal_node = Box::from_raw(removal_ptr.as_ptr());
+            boxed_removal_node.item
         };
 
-        (black_token_opt, item)
+        (black_token_state_opt, item)
     }
 
-    fn rebalance_removal(&mut self, mut black_token_state: BlackToken<T>) {
+    /// Rebalance tree after removal
+    ///
+    /// * `black_token_state`: black token state
+    fn removal_rebalance(&mut self, mut black_token_state: BlackTokenState<T>) {
+        // NOTE: the tree cannot be empty at this point,
+        // otherwise black token would not be generated.
         loop {
-            // root cannot be null, else black token should be None and never enter this function
-            // if black token is some and points to root, break out of the loop
-            if let BlackToken::SomeLink { link_ptr, .. } = black_token_state
-                && link_ptr == self.root.unwrap()
+            // Halt if black token is on root.
+            // If black token is on some node, the tree cannot be empty,
+            // so root can be unwrapped safely.
+            if let BlackTokenState::SomeNode { node_ptr, .. } = black_token_state
+                && node_ptr == self.root.unwrap()
             {
                 break;
             }
 
-            // black token cannot be on root
+            // - NOTE: black token is not on root
             let black_token_ptr_opt = match black_token_state {
-                BlackToken::SomeLink { link_ptr, .. } => Some(link_ptr),
-                BlackToken::Null { .. } => None,
+                BlackTokenState::SomeNode { node_ptr, .. } => Some(node_ptr),
+                BlackTokenState::Null { .. } => None,
             };
-            let black_token_color = Link::get_opt_ptr_color(black_token_ptr_opt);
-            let (parent_ptr, black_token_link_type) = match black_token_state {
-                BlackToken::SomeLink {
-                    link_ptr,
-                    ref link_type,
-                } => (Link::get_parent_ptr(link_ptr).unwrap(), link_type),
-                BlackToken::Null {
-                    parent_ptr,
-                    ref link_type,
-                } => (parent_ptr, link_type),
+            let black_token_color = Node::get_node_color(black_token_ptr_opt);
+            let black_token_node_type = match black_token_state {
+                BlackTokenState::SomeNode { ref node_type, .. } => node_type,
+                BlackTokenState::Null { ref node_type, .. } => node_type,
+            };
+
+            let parent_ptr = match black_token_state {
+                BlackTokenState::SomeNode { node_ptr, .. } => {
+                    // black token is not on root, so it's safe to unwrap parent
+                    Node::get_parent_ptr(node_ptr).unwrap()
+                }
+                BlackTokenState::Null { parent_ptr, .. } => parent_ptr,
             };
             match black_token_color {
+                // if black token node is red, just repaint it black and black token can be removed
                 Color::Red => {
-                    // if black token is red, the link must exists, unwrap all the way
+                    // if black token node is red, the node cannot be null, safe to unwrap
                     let black_token_ptr = black_token_ptr_opt.unwrap();
-                    let mut black_token_link = unsafe { black_token_ptr.read() };
-                    black_token_link.color = Color::Black;
-                    unsafe { black_token_ptr.write(black_token_link) };
+                    let mut black_token_node = unsafe { black_token_ptr.read() };
+                    black_token_node.color = Color::Black;
+                    unsafe { black_token_ptr.write(black_token_node) };
                     break;
                 }
                 Color::Black => {
-                    // sibling must exist, because the black token node exist due to removed node
-                    // being black, due to RB tree rule, all leaf nodes must have same black node
-                    // height, so sibling must exist.
-                    let sibling_ptr = match black_token_state {
-                        BlackToken::SomeLink { link_ptr, .. } => {
-                            Link::get_sibling_ptr(link_ptr).unwrap()
-                        }
-                        BlackToken::Null { parent_ptr, .. } => match black_token_link_type {
-                            LinkType::Left => Link::get_right_ptr(parent_ptr).unwrap(),
-                            LinkType::Right => Link::get_left_ptr(parent_ptr).unwrap(),
-                            LinkType::Root => unreachable!("NANI???"),
-                        },
-                    };
+                    // NOTE: sibling node must exist
+                    // The black token node was created because removed node was black,
+                    // and because red-black property of same black node height among all
+                    // leaf nodes, sibling node must exist, and it's safe to unwrap.
+                    let sibling_ptr =
+                        Node::get_sibling_ptr(parent_ptr, black_token_node_type).unwrap();
                     let mut sibling = unsafe { sibling_ptr.read() };
+
                     match sibling.color {
-                        Color::Red => {
-                            match black_token_link_type {
-                                LinkType::Left => self.subtree_rotate_left(parent_ptr, true),
-                                LinkType::Right => self.subtree_rotate_right(parent_ptr, true),
-                                // TODO fix panic message
-                                LinkType::Root => unreachable!("NOT POSSIBLE"),
+                        // If sibling is red, rotate, but keep black token on the same node,
+                        // the rebalancing will be resolved in subsequent loop iterations.
+                        //
+                        // Explanation:
+                        // - After rotation, black token node's parent changes from black to red,
+                        // new sibling node is old sibling's disconnected child node. Since old
+                        // sibling is red, the new sibling must be black.
+                        // - In the next iteration,
+                        //   - if both nephews are black, sibling is colored red, and black token
+                        //     propagates to parent, and since parent is red, it'll be fixed in
+                        //     another iteration
+                        //  - if any nephew is red, rotation will rebalance the nodes.
+                        Color::Red => match black_token_node_type {
+                            NodeType::Left => self.subtree_rotate_left(parent_ptr, true),
+                            NodeType::Right => self.subtree_rotate_right(parent_ptr, true),
+                            NodeType::Root => {
+                                unreachable!(
+                                    "Removal rebalancing should not occur when black token \
+                                        is placed on root node"
+                                );
                             }
-                        }
+                        },
                         Color::Black => {
-                            // We can safely unwrap, because if black token node is black,
-                            // sibling has to be black to maintain red black tree property where
-                            // leaf node's black node count is equal
-                            let left_nephew_ptr_opt = Link::get_left_ptr(sibling_ptr);
-                            let right_nephew_ptr_opt = Link::get_right_ptr(sibling_ptr);
-                            let left_nephew_color = Link::get_opt_ptr_color(left_nephew_ptr_opt);
-                            let right_nephew_color = Link::get_opt_ptr_color(right_nephew_ptr_opt);
+                            let left_nephew_ptr_opt = Node::get_left_ptr(sibling_ptr);
+                            let right_nephew_ptr_opt = Node::get_right_ptr(sibling_ptr);
+                            let left_nephew_color = Node::get_node_color(left_nephew_ptr_opt);
+                            let right_nephew_color = Node::get_node_color(right_nephew_ptr_opt);
+
+                            // If both nephew are black, color sibling red,
+                            // and move black token to parent node
                             if left_nephew_color == Color::Black
                                 && right_nephew_color == Color::Black
                             {
                                 sibling.color = Color::Red;
                                 unsafe { sibling_ptr.write(sibling) };
-                                let parent_link_type = Link::get_link_type(parent_ptr);
-                                black_token_state = BlackToken::SomeLink {
-                                    link_ptr: parent_ptr,
-                                    link_type: parent_link_type,
+                                let parent_node_type = Node::get_node_type(parent_ptr);
+                                black_token_state = BlackTokenState::SomeNode {
+                                    node_ptr: parent_ptr,
+                                    node_type: parent_node_type,
                                 };
                             } else {
-                                // one of the nephews has to be red
-                                match black_token_link_type {
-                                    LinkType::Left => {
+                                // NOTE: one or both nephews are red
+                                //
+                                // depending on colors of nephews, 1 or 2 rotations are needed
+                                // to complete rebalance
+                                match black_token_node_type {
+                                    NodeType::Left => {
                                         if right_nephew_color == Color::Black {
                                             self.subtree_rotate_right(sibling_ptr, true);
                                             self.subtree_rotate_left(parent_ptr, true);
+                                            // color new uncle node (old sibling node) to black
                                             let mut sibling = unsafe { sibling_ptr.read() };
                                             sibling.color = Color::Black;
                                             unsafe { sibling_ptr.write(sibling) };
                                         } else {
                                             self.subtree_rotate_left(parent_ptr, true);
-                                            // right nephew is red so it must not be null
+                                            // right nephew is red so can't be null, and can be
+                                            // unwrapped safely
                                             let right_nephew_ptr = right_nephew_ptr_opt.unwrap();
+                                            // color new uncle node (old right nephew node) to black
                                             let mut right_nephew =
                                                 unsafe { right_nephew_ptr.read() };
                                             right_nephew.color = Color::Black;
                                             unsafe { right_nephew_ptr.write(right_nephew) };
                                         }
                                     }
-                                    LinkType::Right => {
+                                    NodeType::Right => {
                                         if left_nephew_color == Color::Black {
                                             self.subtree_rotate_left(sibling_ptr, true);
                                             self.subtree_rotate_right(parent_ptr, true);
+                                            // color new uncle node (old sibling node) to black
                                             let mut sibling = unsafe { sibling_ptr.read() };
                                             sibling.color = Color::Black;
                                             unsafe { sibling_ptr.write(sibling) };
                                         } else {
                                             self.subtree_rotate_right(parent_ptr, true);
-                                            // left nephew is red so it must not be null
+                                            // right nephew is red so can't be null, and can be
+                                            // unwrapped safely
                                             let left_nephew_ptr = left_nephew_ptr_opt.unwrap();
+                                            // color new uncle node (old left nephew node) to black
                                             let mut left_nephew = unsafe { left_nephew_ptr.read() };
                                             left_nephew.color = Color::Black;
                                             unsafe { left_nephew_ptr.write(left_nephew) };
                                         }
                                     }
-                                    // TODO fix message
-                                    LinkType::Root => unreachable!("UNREACHABLE!!!"),
+                                    NodeType::Root => {
+                                        unreachable!(
+                                            "Removal rebalancing should not occur when black token \
+                                        is placed on root node"
+                                        );
+                                    }
                                 }
                                 break;
                             }
@@ -538,48 +763,62 @@ where
         }
     }
 
-    fn subtree_rotate_left(&mut self, subtree_root_ptr: NonNull<Link<T>>, swap_color: bool) {
-        let subtree_root_link_type = Link::get_link_type(subtree_root_ptr);
-        // self, right child should be a branch node by default, and right left child should at
-        // least be a link
-        // Link parent
-        let right_ptr = Link::get_right_ptr(subtree_root_ptr).unwrap();
-        let right_left_ptr_opt = Link::get_left_ptr(right_ptr);
+    /// Rotate subtree left
+    ///
+    /// ### Note
+    ///
+    /// will panic if subtree root does not have a right child
+    ///
+    /// * `subtree_root_ptr`: pointer to subtree root
+    /// * `swap_color`: flat to swap colors in subtree root node and its right child node
+    fn subtree_rotate_left(&mut self, subtree_root_ptr: NonNull<Node<T>>, swap_color: bool) {
+        let subtree_root_node_type = Node::get_node_type(subtree_root_ptr);
+
+        // this function assumes subtree root node has a right child, unwrapping
+        let right_ptr = Node::get_right_ptr(subtree_root_ptr).unwrap();
+        let right_left_ptr_opt = Node::get_left_ptr(right_ptr);
         let mut subtree_root = unsafe { subtree_root_ptr.read() };
         let mut right = unsafe { right_ptr.read() };
 
+        // connect old/new subtree roots to their parents
         right.parent = subtree_root.parent;
         subtree_root.parent = Some(right_ptr);
 
+        // connect old/new subtree roots to their child
         subtree_root.right = right_left_ptr_opt;
         right.left = Some(subtree_root_ptr);
 
+        // swap color if needed
         if swap_color {
             mem::swap(&mut right.color, &mut subtree_root.color);
         }
 
-        match subtree_root_link_type {
-            LinkType::Left => {
+        // If subtree root is not root of the entire tree,
+        // connect old subtree root's parent to new subtree root and write parent.
+        // Else, reconnect tree root
+        match subtree_root_node_type {
+            NodeType::Left => {
                 let parent_ptr = right.parent.unwrap();
                 let mut parent = unsafe { parent_ptr.read() };
                 parent.left = Some(right_ptr);
                 unsafe { parent_ptr.write(parent) };
             }
-            LinkType::Right => {
+            NodeType::Right => {
                 let parent_ptr = right.parent.unwrap();
                 let mut parent = unsafe { parent_ptr.read() };
                 parent.right = Some(right_ptr);
                 unsafe { parent_ptr.write(parent) };
             }
-            LinkType::Root => {
+            NodeType::Root => {
                 self.root = Some(right_ptr);
-                right.color = Color::Black;
             }
         }
 
+        // write old/new subtree root
         unsafe { subtree_root_ptr.write(subtree_root) };
         unsafe { right_ptr.write(right) };
 
+        // if old subtree root's right node is not null, reconnect it back
         if let Some(right_left_ptr) = right_left_ptr_opt {
             let mut right_left = unsafe { right_left_ptr.read() };
             right_left.parent = Some(subtree_root_ptr);
@@ -587,48 +826,62 @@ where
         }
     }
 
-    fn subtree_rotate_right(&mut self, subtree_root_ptr: NonNull<Link<T>>, swap_color: bool) {
-        let subtree_root_link_type = Link::get_link_type(subtree_root_ptr);
-        // self, left child should be a branch node by default, and left right child should at
-        // least be a link
-        // Link parent
-        let left_ptr = Link::get_left_ptr(subtree_root_ptr).unwrap();
-        let left_right_ptr_opt = Link::get_right_ptr(left_ptr);
+    /// Rotate subtree right
+    ///
+    /// ### Note
+    ///
+    /// will panic if subtree root does not have a left child
+    ///
+    /// * `subtree_root_ptr`: pointer to subtree root
+    /// * `swap_color`: flat to swap colors in subtree root node and its left child node
+    fn subtree_rotate_right(&mut self, subtree_root_ptr: NonNull<Node<T>>, swap_color: bool) {
+        let subtree_root_node_type = Node::get_node_type(subtree_root_ptr);
+
+        // this function assumes subtree root node has a left child, unwrapping
+        let left_ptr = Node::get_left_ptr(subtree_root_ptr).unwrap();
+        let left_right_ptr_opt = Node::get_right_ptr(left_ptr);
         let mut subtree_root = unsafe { subtree_root_ptr.read() };
         let mut left = unsafe { left_ptr.read() };
 
+        // connect old/new subtree roots to their parents
         left.parent = subtree_root.parent;
         subtree_root.parent = Some(left_ptr);
 
+        // connect old/new subtree roots to their child
         subtree_root.left = left_right_ptr_opt;
         left.right = Some(subtree_root_ptr);
 
+        // swap color if needed
         if swap_color {
             mem::swap(&mut left.color, &mut subtree_root.color);
         }
 
-        match subtree_root_link_type {
-            LinkType::Left => {
+        // If subtree root is not root of the entire tree,
+        // connect old subtree root's parent to new subtree root and write parent.
+        // Else, reconnect tree root
+        match subtree_root_node_type {
+            NodeType::Left => {
                 let parent_ptr = left.parent.unwrap();
                 let mut parent = unsafe { parent_ptr.read() };
                 parent.left = Some(left_ptr);
                 unsafe { parent_ptr.write(parent) };
             }
-            LinkType::Right => {
+            NodeType::Right => {
                 let parent_ptr = left.parent.unwrap();
                 let mut parent = unsafe { parent_ptr.read() };
                 parent.right = Some(left_ptr);
                 unsafe { parent_ptr.write(parent) };
             }
-            LinkType::Root => {
+            NodeType::Root => {
                 self.root = Some(left_ptr);
-                left.color = Color::Black;
             }
         }
 
+        // write old/new subtree root
         unsafe { subtree_root_ptr.write(subtree_root) };
         unsafe { left_ptr.write(left) };
 
+        // if old subtree root's left node is not null, reconnect it back
         if let Some(left_right_ptr) = left_right_ptr_opt {
             let mut left_right = unsafe { left_right_ptr.read() };
             left_right.parent = Some(subtree_root_ptr);
@@ -636,28 +889,42 @@ where
         }
     }
 
+    /// Check if tree contains an item
+    ///
+    /// * `item`: reference to item
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use dsa::red_black_tree::RedBlackTree;
+    /// let mut tree: RedBlackTree<i32> = RedBlackTree::new();
+    /// assert!(!tree.contains(&5));
+    /// tree.insert(5);
+    /// assert!(tree.contains(&5));
+    /// assert_eq!(tree.remove(&5), Some(5));
+    /// assert!(!tree.contains(&5));
+    /// assert_eq!(tree.remove(&5), None);
+    /// ```
     pub fn contains(&self, item: &T) -> bool {
-        // set root as current link
-        // traverse left if current node item is smaller,
-        // or traverse right if item is bigger,
-        // if an equal item is found, return true
         let mut curr_ptr = match self.root {
             Some(root) => root,
             None => return false,
         };
 
+        // traverse tree,
+        // if leaf node reached without finding item, item does not exist
         loop {
-            let link = unsafe { curr_ptr.read() };
-            match link.item.cmp(item) {
+            let node = unsafe { curr_ptr.read() };
+            match node.item.cmp(item) {
                 Ordering::Greater => {
-                    if let Some(left_ptr) = link.left {
+                    if let Some(left_ptr) = node.left {
                         curr_ptr = left_ptr;
                     } else {
                         return false;
                     }
                 }
                 Ordering::Less => {
-                    if let Some(right_ptr) = link.right {
+                    if let Some(right_ptr) = node.right {
                         curr_ptr = right_ptr;
                     } else {
                         return false;
@@ -668,61 +935,206 @@ where
         }
     }
 
+    /// Get min item in tree
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use dsa::red_black_tree::RedBlackTree;
+    /// let mut tree: RedBlackTree<i32> = RedBlackTree::new();
+    /// tree.insert(10);
+    /// tree.insert(5);
+    /// assert_eq!(tree.min(), Some(&5));
+    /// tree.pop_min();
+    /// assert_eq!(tree.min(), Some(&10));
+    /// tree.pop_min();
+    /// assert_eq!(tree.min(), None);
+    /// ```
     pub fn min(&self) -> Option<&T> {
+        // From root node, traverse left until leaf node
         let mut curr_ptr = self.root?;
-
         while let Some(left_ptr) = unsafe { curr_ptr.read() }.left {
             curr_ptr = left_ptr;
         }
-
         Some(&unsafe { curr_ptr.as_ref() }.item)
     }
 
+    /// Get max item in tree
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use dsa::red_black_tree::RedBlackTree;
+    /// let mut tree: RedBlackTree<i32> = RedBlackTree::new();
+    /// tree.insert(5);
+    /// tree.insert(10);
+    /// assert_eq!(tree.max(), Some(&10));
+    /// tree.pop_max();
+    /// assert_eq!(tree.max(), Some(&5));
+    /// tree.pop_max();
+    /// assert_eq!(tree.max(), None);
+    /// ```
     pub fn max(&self) -> Option<&T> {
+        // From root node, traverse right until leaf node
         let mut curr_ptr = self.root?;
-
         while let Some(right_ptr) = unsafe { curr_ptr.read() }.right {
             curr_ptr = right_ptr;
         }
         Some(&unsafe { curr_ptr.as_ref() }.item)
     }
 
+    /// Pop min node from tree
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use dsa::red_black_tree::RedBlackTree;
+    /// let mut tree: RedBlackTree<i32> = RedBlackTree::new();
+    /// tree.insert(10);
+    /// tree.insert(5);
+    /// assert_eq!(tree.pop_min(), Some(5));
+    /// assert_eq!(tree.pop_min(), Some(10));
+    /// assert_eq!(tree.pop_min(), None);
+    /// ```
     pub fn pop_min(&mut self) -> Option<T> {
+        // if tree is not empty, get pointer to min node
         let root_ptr = self.root?;
-        let min_ptr = Link::get_subtree_min_ptr(root_ptr);
-        let (black_token_opt, item) = self.remove_link(min_ptr);
+        let min_ptr = Node::get_subtree_min_ptr(root_ptr);
+        // remove the node
+        let (black_token_opt, item) = self.remove_node(min_ptr);
+        // decrement tree size
         self.size -= 1;
+        // handle black token if present
         if let Some(black_token) = black_token_opt {
-            self.rebalance_removal(black_token);
+            self.removal_rebalance(black_token);
         }
         Some(item)
     }
 
+    /// Pop max node from tree
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use dsa::red_black_tree::RedBlackTree;
+    /// let mut tree: RedBlackTree<i32> = RedBlackTree::new();
+    /// tree.insert(5);
+    /// tree.insert(10);
+    /// assert_eq!(tree.pop_max(), Some(10));
+    /// assert_eq!(tree.pop_max(), Some(5));
+    /// assert_eq!(tree.pop_max(), None);
+    /// ```
     pub fn pop_max(&mut self) -> Option<T> {
+        // if tree is not empty, get pointer to min node
         let root_ptr = self.root?;
-        let max_ptr = Link::get_subtree_max_ptr(root_ptr);
-        let (black_token_opt, item) = self.remove_link(max_ptr);
+        let max_ptr = Node::get_subtree_max_ptr(root_ptr);
+        // remove the node
+        let (black_token_opt, item) = self.remove_node(max_ptr);
+        // decrement tree size
         self.size -= 1;
+        // handle black token if present
         if let Some(black_token) = black_token_opt {
-            self.rebalance_removal(black_token);
+            self.removal_rebalance(black_token);
         }
         Some(item)
     }
 
+    /// Get iterator
+    ///
+    /// * `order`: traversal order of iterator
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use dsa::red_black_tree::{RedBlackTree, TraversalOrder};
+    /// let mut tree: RedBlackTree<i32> = RedBlackTree::new();
+    /// for i in [3, 2, 1, 5, 4] {
+    ///     tree.insert(i);
+    /// }
+    /// let mut iter = tree.iter(TraversalOrder::Level);
+    /// for i in [2, 1, 4, 3, 5] {
+    ///     assert_eq!(iter.next(), Some(&i));
+    /// }
+    /// assert_eq!(iter.next(), None);
+    ///
+    /// let mut iter = tree.iter(TraversalOrder::Pre);
+    /// for i in [2, 1, 4, 3, 5] {
+    ///     assert_eq!(iter.next(), Some(&i));
+    /// }
+    /// assert_eq!(iter.next(), None);
+    ///
+    /// let mut iter = tree.iter(TraversalOrder::In);
+    /// for i in 1..=5 {
+    ///     assert_eq!(iter.next(), Some(&i));
+    /// }
+    /// assert_eq!(iter.next(), None);
+    ///
+    /// let mut iter = tree.iter(TraversalOrder::Post);
+    /// for i in [1, 3, 5, 4, 2] {
+    ///     assert_eq!(iter.next(), Some(&i));
+    /// }
+    /// assert_eq!(iter.next(), None);
+    /// ```
     pub fn iter(&self, order: TraversalOrder) -> Iter<T> {
         Iter {
-            curr_link: self.root.map(|root| unsafe { root.as_ref() }),
-            links: VecDeque::new(),
-            post_group_links: VecDeque::new(),
+            curr: self.root.map(|root| unsafe { root.as_ref() }),
+            nodes: VecDeque::new(),
+            post_order_node_groups: VecDeque::new(),
             order,
         }
     }
 
-    pub fn into_iter(self, order: TraversalOrder) -> IntoIter<T> {
+    /// Get into-iterator which consumes the tree
+    ///
+    /// * `order`: traversal order of into-iterator
+    ///
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use dsa::red_black_tree::{RedBlackTree, TraversalOrder};
+    /// let mut tree: RedBlackTree<i32> = RedBlackTree::new();
+    /// for i in [3, 2, 1, 5, 4] {
+    ///     tree.insert(i);
+    /// }
+    /// let mut iter = tree.iter(TraversalOrder::Level);
+    /// for i in [2, 1, 4, 3, 5] {
+    ///     assert_eq!(iter.next(), Some(&i));
+    /// }
+    /// assert_eq!(iter.next(), None);
+    ///
+    /// for i in [3, 2, 1, 5, 4] {
+    ///     tree.insert(i);
+    /// }
+    /// let mut iter = tree.iter(TraversalOrder::Pre);
+    /// for i in [2, 1, 4, 3, 5] {
+    ///     assert_eq!(iter.next(), Some(&i));
+    /// }
+    /// assert_eq!(iter.next(), None);
+    ///
+    /// for i in [3, 2, 1, 5, 4] {
+    ///     tree.insert(i);
+    /// }
+    /// let mut iter = tree.iter(TraversalOrder::In);
+    /// for i in 1..=5 {
+    ///     assert_eq!(iter.next(), Some(&i));
+    /// }
+    /// assert_eq!(iter.next(), None);
+    ///
+    /// for i in [3, 2, 1, 5, 4] {
+    ///     tree.insert(i);
+    /// }
+    /// let mut iter = tree.iter(TraversalOrder::Post);
+    /// for i in [1, 3, 5, 4, 2] {
+    ///     assert_eq!(iter.next(), Some(&i));
+    /// }
+    /// assert_eq!(iter.next(), None);
+    /// ```
+    pub fn into_iter(mut self, order: TraversalOrder) -> IntoIter<T> {
         IntoIter {
-            curr: None,
+            curr: self.root.take(),
             ptrs: VecDeque::new(),
-            post_ptrs: VecDeque::new(),
+            post_order_ptr_groups: VecDeque::new(),
             order,
         }
     }
@@ -732,21 +1144,40 @@ impl<T> Default for RedBlackTree<T>
 where
     T: Ord + Debug,
 {
+    /// Create default empty red-black tree
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use dsa::red_black_tree::RedBlackTree;
+    /// let mut tree: RedBlackTree<i32> = RedBlackTree::default();
+    /// assert_eq!(tree.size(), 0);
+    /// assert!(tree.is_empty());
+    /// ```
     fn default() -> Self {
         Self::new()
     }
 }
 
+/// Iterator struct
+///
+/// * `curr`: current node being processed
+/// * `nodes`: nodes to be processed
+/// * `post_order_node_groups`: node groups to be processed for post order traversal
+///   each node group consists of a node, and its right child node if child node is
+///   not yet processed.
+/// * `order`: traversal order
 pub struct Iter<'a, T> {
-    curr_link: Option<&'a Link<T>>,
-    links: VecDeque<&'a Link<T>>,
-    post_group_links: VecDeque<(&'a Link<T>, Option<&'a Link<T>>)>,
+    curr: Option<&'a Node<T>>,
+    nodes: VecDeque<&'a Node<T>>,
+    post_order_node_groups: VecDeque<(&'a Node<T>, Option<&'a Node<T>>)>,
     order: TraversalOrder,
 }
 
 impl<'a, T> Iterator for Iter<'a, T> {
     type Item = &'a T;
 
+    /// Iterator next() implementation, routes to iterator based on traversal order
     fn next(&mut self) -> Option<Self::Item> {
         match self.order {
             TraversalOrder::Level => self.level_order_next(),
@@ -758,88 +1189,114 @@ impl<'a, T> Iterator for Iter<'a, T> {
 }
 
 impl<'a, T> Iter<'a, T> {
+    /// Iterator next() for level-order traversal
     fn level_order_next(&mut self) -> Option<&'a T> {
-        self.curr_link.map(|curr_link| {
-            if let Some(left_ptr) = curr_link.left {
-                self.links.push_front(unsafe { left_ptr.as_ref() });
+        self.curr.map(|curr_node| {
+            // if children are present, push to processing queue
+            if let Some(left_ptr) = curr_node.left {
+                self.nodes.push_front(unsafe { left_ptr.as_ref() });
             }
-            if let Some(right_ptr) = curr_link.right {
-                self.links.push_front(unsafe { right_ptr.as_ref() });
+            if let Some(right_ptr) = curr_node.right {
+                self.nodes.push_front(unsafe { right_ptr.as_ref() });
             }
 
-            let item = &curr_link.item;
-            self.curr_link = self.links.pop_back();
+            // save current node item
+            let item = &curr_node.item;
+            // pop a node from processing queue and assign to current node so
+            // that it can be processed in next next() call
+            self.curr = self.nodes.pop_back();
             item
         })
     }
 
+    /// Iterator next() for pre-order traversal
     fn pre_order_next(&mut self) -> Option<&'a T> {
-        self.curr_link.map(|curr_link| {
-            if let Some(right_ptr) = curr_link.right {
-                self.links.push_front(unsafe { right_ptr.as_ref() });
+        self.curr.map(|curr_node| {
+            // if children are present, push to processing stack, right child goes in first
+            if let Some(right_ptr) = curr_node.right {
+                self.nodes.push_front(unsafe { right_ptr.as_ref() });
             }
-            if let Some(left_ptr) = curr_link.left {
-                self.links.push_front(unsafe { left_ptr.as_ref() });
+            if let Some(left_ptr) = curr_node.left {
+                self.nodes.push_front(unsafe { left_ptr.as_ref() });
             }
 
-            let item = &curr_link.item;
-            self.curr_link = self.links.pop_front();
+            // save current node item
+            let item = &curr_node.item;
+            // pop a node from processing stack and assign to current node so
+            // that it can be processed in next next() call
+            self.curr = self.nodes.pop_front();
             item
         })
     }
 
+    /// Iterator next() for in-order traversal
     fn in_order_next(&mut self) -> Option<&'a T> {
-        while let Some(curr_link) = self.curr_link {
-            self.links.push_front(curr_link);
-            self.curr_link = curr_link.left.map(|left_ptr| unsafe { left_ptr.as_ref() })
+        // traverse left and save all nodes to stack
+        while let Some(curr_node) = self.curr {
+            self.nodes.push_front(curr_node);
+            self.curr = curr_node.left.map(|left_ptr| unsafe { left_ptr.as_ref() })
         }
 
-        self.links.pop_front().map(|link| {
-            self.curr_link = link.right.map(|right_ptr| unsafe { right_ptr.as_ref() });
-            &link.item
+        // pop a node from stack, assign its right child to current node if present
+        // so that it can be processed in next next() call.
+        self.nodes.pop_front().map(|front_node| {
+            self.curr = front_node
+                .right
+                .map(|right_ptr| unsafe { right_ptr.as_ref() });
+            &front_node.item
         })
     }
 
+    /// Iterator next() for post-order traversal
     fn post_order_next(&mut self) -> Option<&'a T> {
         loop {
-            while let Some(curr_link) = self.curr_link {
-                let right_link = curr_link
+            // traverse left, for each node, push the node and its right child as
+            // a node group to stack
+            while let Some(curr_node) = self.curr {
+                let right_node = curr_node
                     .right
                     .map(|right_ptr| unsafe { right_ptr.as_ref() });
-                self.post_group_links.push_front((curr_link, right_link));
-                self.curr_link = curr_link.left.map(|left_ptr| unsafe { left_ptr.as_ref() });
+                self.post_order_node_groups
+                    .push_front((curr_node, right_node));
+                self.curr = curr_node.left.map(|left_ptr| unsafe { left_ptr.as_ref() });
             }
 
-            let post_link = self.post_group_links.pop_front()?;
-            match post_link.1 {
-                Some(right_link) => {
-                    self.post_group_links.push_front((post_link.0, None));
-                    self.curr_link = Some(right_link)
+            // pop a node group from stack, if node group's right child node is present,
+            // re-push the node group without the right child node, and assign right
+            // child node to current node so that it can be processed in next loop iteration.
+            let node_group = self.post_order_node_groups.pop_front()?;
+            match node_group.1 {
+                Some(right_node) => {
+                    self.post_order_node_groups.push_front((node_group.0, None));
+                    self.curr = Some(right_node)
                 }
-                None => return Some(&post_link.0.item),
+                None => return Some(&node_group.0.item),
             };
         }
     }
 }
 
-type IntoIterPostOrderLink<T> = (NonNull<Link<T>>, Option<NonNull<Link<T>>>);
+type IntoPostOrderNodeGroups<T> = (NonNull<Node<T>>, Option<NonNull<Node<T>>>);
+
+/// Into-iterator struct
+///
+/// * `curr`: current node pointer being processed
+/// * `ptrs`: node pointers to be processed
+/// * `post_order_ptr_groups`: node pointer groups to be processed for post order traversal
+///   each node group consists of a node pointer and its right child node pointer
+///   if the child node is not yet processed.
+/// * `order`: traversal order
 pub struct IntoIter<T> {
-    // own the tree so it can be dropped later
-    curr: Option<NonNull<Link<T>>>,
-    ptrs: VecDeque<NonNull<Link<T>>>,
-    // post-order iterator uses post_nodes
-    // within a VecDeque item, the first tuple parameter stores
-    // the node, and seocnd parameter stores unprocessed right child
-    post_ptrs: VecDeque<IntoIterPostOrderLink<T>>,
+    curr: Option<NonNull<Node<T>>>,
+    ptrs: VecDeque<NonNull<Node<T>>>,
+    post_order_ptr_groups: VecDeque<IntoPostOrderNodeGroups<T>>,
     order: TraversalOrder,
 }
 
-impl<T> Iterator for IntoIter<T>
-where
-    T: PartialEq + Debug,
-{
+impl<T> Iterator for IntoIter<T> {
     type Item = T;
 
+    /// Iterator next() implementation, routes to into-iterator based on traversal order
     fn next(&mut self) -> Option<Self::Item> {
         match self.order {
             TraversalOrder::Level => self.level_order_next(),
@@ -850,93 +1307,124 @@ where
     }
 }
 
-impl<T> IntoIter<T>
-where
-    T: PartialEq + Debug,
-{
+impl<T> IntoIter<T> {
+    /// Into-iterator next() for level-order traversal
     fn level_order_next(&mut self) -> Option<T> {
-        // TODO: it works, but it's not freeing memories correctly
         self.curr.map(|curr_ptr| {
-            let curr_link = unsafe { curr_ptr.read() };
-            if let Some(left_ptr) = curr_link.left {
+            // If children are present, push to processing queue.
+            // Convert current pointer to box so that node can be dropped
+            let curr_node = unsafe { Box::from_raw(curr_ptr.as_ptr()) };
+            if let Some(left_ptr) = curr_node.left {
                 self.ptrs.push_front(left_ptr);
             }
-            if let Some(right_ptr) = curr_link.right {
+            if let Some(right_ptr) = curr_node.right {
                 self.ptrs.push_front(right_ptr);
             }
 
-            let item = curr_link.item;
+            // save current node item
+            let item = curr_node.item;
+            // pop a node from processing queue and assign to current node so
+            // that it can be processed in next next() call
             self.curr = self.ptrs.pop_back();
             item
         })
     }
 
+    /// Into-iterator next() for pre-order traversal
     fn pre_order_next(&mut self) -> Option<T> {
         self.curr.map(|curr_ptr| {
-            let curr_link = unsafe { curr_ptr.read() };
-            if let Some(right_ptr) = curr_link.right {
+            // If children are present, push to processing stack, right child goes in first
+            // Convert current pointer to box so that node can be dropped
+            let curr_node = unsafe { Box::from_raw(curr_ptr.as_ptr()) };
+            if let Some(right_ptr) = curr_node.right {
                 self.ptrs.push_front(right_ptr);
             }
-            if let Some(left_ptr) = curr_link.left {
+            if let Some(left_ptr) = curr_node.left {
                 self.ptrs.push_front(left_ptr);
             }
 
-            let item = curr_link.item;
+            // save current node item
+            let item = curr_node.item;
+            // pop a node from processing stack and assign to current node so
+            // that it can be processed in next next() call
             self.curr = self.ptrs.pop_front();
             item
         })
     }
 
+    /// Into-iterator next() for in-order traversal
     fn in_order_next(&mut self) -> Option<T> {
+        // traverse left and save all nodes to stack
         while let Some(curr_ptr) = self.curr {
             self.ptrs.push_front(curr_ptr);
             self.curr = unsafe { curr_ptr.read() }.left;
         }
 
-        self.ptrs.pop_front().map(|ptr| {
-            let link = unsafe { ptr.read() };
-            self.curr = link.right;
-            link.item
+        // pop a node from stack, assign its right child to current node if present
+        // so that it can be processed in next next() call.
+        self.ptrs.pop_front().map(|front_ptr| {
+            // convert popped pointer to box so that node can be dropped
+            let node = unsafe { Box::from_raw(front_ptr.as_ptr()) };
+            self.curr = node.right;
+            node.item
         })
     }
 
+    /// Into-iterator next() for post-order traversal
     fn post_order_next(&mut self) -> Option<T> {
         loop {
+            // traverse left, for each node, push the node and its right child as
+            // a node group to stack
             while let Some(curr_ptr) = self.curr {
-                let curr_link = unsafe { curr_ptr.read() };
-                let right_ptr = curr_link.right;
-                self.post_ptrs.push_front((curr_ptr, right_ptr));
-                self.curr = curr_link.left;
+                let curr_node = unsafe { curr_ptr.read() };
+                let right_ptr = curr_node.right;
+                self.post_order_ptr_groups.push_front((curr_ptr, right_ptr));
+                self.curr = curr_node.left;
             }
 
-            let post_link = self.post_ptrs.pop_front()?;
-            match post_link.1 {
+            // pop a node group from stack, if node group's right child node is present,
+            // re-push the node group without the right child node, and assign right
+            // child node to current node so that it can be processed in next loop iteration.
+            let ptr_group = self.post_order_ptr_groups.pop_front()?;
+            match ptr_group.1 {
                 Some(right_ptr) => {
-                    self.post_ptrs.push_front((post_link.0, None));
+                    self.post_order_ptr_groups.push_front((ptr_group.0, None));
                     self.curr = Some(right_ptr)
                 }
-                None => return Some(unsafe { post_link.0.read() }.item),
+                // convert node pointer to box so that node can be dropped
+                None => return Some(unsafe { Box::from_raw(ptr_group.0.as_ptr()) }.item),
             };
         }
     }
 }
 
 impl<T> Drop for RedBlackTree<T> {
+    /// Drops all nodes in tree
     fn drop(&mut self) {
         let mut nodes = match self.root {
             Some(root) => vec![root],
             None => return,
         };
 
-        while let Some(ptr) = nodes.pop() {
-            let link = unsafe { Box::from_raw(ptr.as_ptr()) };
-            if let Some(left_ptr) = link.left {
+        while let Some(curr_ptr) = nodes.pop() {
+            let node = unsafe { Box::from_raw(curr_ptr.as_ptr()) };
+            if let Some(left_ptr) = node.left {
                 nodes.push(left_ptr);
             }
-            if let Some(right_ptr) = link.right {
+            if let Some(right_ptr) = node.right {
                 nodes.push(right_ptr);
             }
         }
+    }
+}
+
+impl<T> Drop for IntoIter<T> {
+    /// Into-iterator next() implementation drops processed nodes
+    /// Since Into-iterator owns the tree, all nodes must be dropped
+    /// or there would be memory leaks. Drop all memory by exhausting
+    /// the into-iterator
+    fn drop(&mut self) {
+        for _ in self.by_ref() {}
     }
 }
 
@@ -944,7 +1432,6 @@ impl<T> Drop for RedBlackTree<T> {
 mod tests {
     use super::*;
     use serde_json::{self, Value};
-    use std::cmp::{max, min};
     use std::collections::{HashMap, HashSet};
     use std::fs;
     use std::path;
@@ -999,96 +1486,129 @@ mod tests {
         tree
     }
 
+    /// Validate red-black tree
+    ///
+    /// * `tree`: ref to red-black tree
     fn validate_bst(tree: &RedBlackTree<i32>) {
-        // node, min, max
+        // first node has no lower/upper bound
         let min_val: Option<i32> = None;
         let max_val: Option<i32> = None;
+
+        // empty tree is always valid
         let root = match tree.root {
             Some(root) => root,
             None => return,
         };
+
+        // Each item in queue represent a node pointer, and its upper/lower bound
         let mut queue = vec![(root, min_val, max_val)];
 
+        // pop a queue item
         while let Some(queue_item) = queue.pop() {
-            let link_ptr = queue_item.0;
+            // unpack queue item
+            let curr_ptr = queue_item.0;
             let min_val = queue_item.1;
             let max_val = queue_item.2;
+            let curr_node = unsafe { curr_ptr.read() };
 
-            let link = unsafe { link_ptr.read() };
-
+            // if min/max is present, validate node item is within bound
             match (min_val, max_val) {
                 (None, None) => {}
-                (None, Some(max)) => assert!(link.item < max),
-                (Some(min), None) => assert!(link.item > min),
-                (Some(min), Some(max)) => assert!(link.item > min && link.item < max),
+                (None, Some(max)) => assert!(curr_node.item < max),
+                (Some(min), None) => assert!(curr_node.item > min),
+                (Some(min), Some(max)) => assert!(curr_node.item > min && curr_node.item < max),
             }
 
-            if let Some(left_ptr) = link.left {
-                queue.push((
-                    left_ptr,
-                    min_val,
-                    Some(max_val.map_or(link.item, |val| min(val, link.item))),
-                ))
+            // push left child node pointer to processing queue; left child's
+            // upper bound is current node's item
+            if let Some(left_ptr) = curr_node.left {
+                queue.push((left_ptr, min_val, Some(curr_node.item)))
             }
-            if let Some(right_ptr) = link.right {
-                queue.push((
-                    right_ptr,
-                    Some(min_val.map_or(link.item, |val| max(val, link.item))),
-                    max_val,
-                ))
+            // push right child node pointer to processing queue; right child's
+            // lower bound is current node's item
+            if let Some(right_ptr) = curr_node.right {
+                queue.push((right_ptr, Some(curr_node.item), max_val))
             }
         }
     }
 
+    /// Validate red-black tree's property
+    ///
+    /// * `tree`: ref to red-black tree
     fn validate_rbt<T: Debug>(tree: &RedBlackTree<T>) {
+        // unwrap root node pointer if tree is not empty
         let root_ptr = match tree.root {
             Some(root) => root,
+            // empty tree is always valid
             None => return,
         };
-
         let root = unsafe { root_ptr.read() };
+
+        // assert root node is black
         assert_eq!(root.color, Color::Black);
 
-        let mut queue: Vec<NonNull<Link<T>>> = Vec::new();
+        let mut queue: Vec<NonNull<Node<T>>> = Vec::new();
         queue.push(root_ptr);
 
-        let mut black_link_heights: HashMap<NonNull<Link<T>>, usize> = HashMap::new();
-        let mut leaf_heights: HashSet<usize> = HashSet::new();
+        // stores black node height for each node
+        let mut black_node_heights: HashMap<NonNull<Node<T>>, usize> = HashMap::new();
+        // stores unique black node heights for leaf nodes
+        let mut leaf_black_node_heights: HashSet<usize> = HashSet::new();
 
-        while let Some(link_ptr) = queue.pop() {
-            let link = unsafe { link_ptr.read() };
-            match link.parent {
+        // pop and process queue item
+        while let Some(curr_ptr) = queue.pop() {
+            let curr_node = unsafe { curr_ptr.read() };
+
+            // save black node height
+            match curr_node.parent {
                 Some(parent_ptr) => {
-                    let parent_height = black_link_heights.get(&parent_ptr).unwrap();
-                    let height = match link.color {
+                    // check parent's black node height, if current node is black, increment
+                    // height, then save current node's black node height
+                    let parent_height = black_node_heights.get(&parent_ptr).unwrap();
+                    let curr_height = match curr_node.color {
                         Color::Red => *parent_height,
                         Color::Black => *parent_height + 1,
                     };
-                    assert!(black_link_heights.insert(link_ptr, height).is_none());
+                    assert!(black_node_heights.insert(curr_ptr, curr_height).is_none());
                 }
                 None => {
-                    assert!(black_link_heights.insert(link_ptr, 1).is_none());
+                    // root node is black so black node height is 1
+                    assert!(black_node_heights.insert(curr_ptr, 1).is_none());
                 }
             }
-            if let Some(left_ptr) = link.left {
-                if link.color == Color::Red {
+
+            // if current node has left child, push it to queue
+            if let Some(left_ptr) = curr_node.left {
+                // if current node is red, assert left child must be black
+                if curr_node.color == Color::Red {
                     assert_eq!(unsafe { left_ptr.read() }.color, Color::Black);
                 }
                 queue.push(left_ptr);
             }
-            if let Some(right_ptr) = link.right {
-                if link.color == Color::Red {
+            // if current node has right child, push it to queue
+            if let Some(right_ptr) = curr_node.right {
+                // if current node is red, assert right child must be black
+                if curr_node.color == Color::Red {
                     assert_eq!(unsafe { right_ptr.read() }.color, Color::Black);
                 }
                 queue.push(right_ptr);
             }
-            if link.left.is_none() && link.right.is_none() {
-                leaf_heights.insert(*black_link_heights.get(&link_ptr).unwrap());
+
+            // for leaf node, record black node heights in unique set
+            if curr_node.left.is_none() && curr_node.right.is_none() {
+                leaf_black_node_heights.insert(*black_node_heights.get(&curr_ptr).unwrap());
             }
         }
-        assert_eq!(leaf_heights.len(), 1);
+
+        // All leaf node's black node height should be identical,
+        // so the unique set should have length of 1.
+        assert_eq!(leaf_black_node_heights.len(), 1);
     }
 
+    /// Validate red-black tree's traversal order
+    ///
+    /// * `tree`: ref to red-black tree
+    /// * `expected_orders`: expected traversal order
     fn validate_order(tree: &RedBlackTree<i32>, expected_orders: &Value) {
         let order_types = vec![
             (TraversalOrder::Level, "level"),
@@ -1096,6 +1616,7 @@ mod tests {
             (TraversalOrder::Pre, "pre"),
             (TraversalOrder::Post, "post"),
         ];
+        // for each traversal order, iterate the tree and compare it with expected order
         for order_type in order_types {
             let actual_order: Vec<i32> = tree.iter(order_type.0).copied().collect();
             let expected_order: Vec<i32> = expected_orders[order_type.1]
@@ -1108,6 +1629,11 @@ mod tests {
         }
     }
 
+    /// Validate red-black tree's into-iterator traversal order
+    ///
+    /// * `tree_generator`: function that generates desired tree
+    /// * `mirror`: mirror flag to be passed into tree generator
+    /// * `expected_orders`: expected traversal order
     fn validate_into_order(
         tree_generator: fn(bool) -> RedBlackTree<i32>,
         mirror: bool,
@@ -1119,7 +1645,10 @@ mod tests {
             (TraversalOrder::Pre, "pre"),
             (TraversalOrder::Post, "post"),
         ];
+        // for each traversal order, generate a tree, iterate the tree,
+        // and compare it with the expected order
         for order_type in order_types {
+            // generate tree
             let tree = tree_generator(mirror);
             let actual_order: Vec<i32> = tree.into_iter(order_type.0).collect();
             let expected_order: Vec<i32> = expected_orders[order_type.1]
@@ -1996,27 +2525,60 @@ mod tests {
         assert_eq!(tree.pop_max(), None);
     }
 
-    // #[test]
-    // fn test_into_iter_tilted() {
-    //     let order_data = read_json_data("./unit_test_data/rbt_insert_orders.json");
-    //
-    //     // right-tilted tree
-    //     let expected_orders = &order_data["left_tilted"];
-    //     validate_into_order(new_tilted_tree, false, &expected_orders[19]);
-    //
-    //     // left-tilted tree
-    //     let mut tree = new_tilted_tree(true);
-    //     let expected_orders = &order_data["right_tilted"];
-    //     validate_into_order(new_tilted_tree, true, &expected_orders[19]);
-    // }
+    #[test]
+    fn test_into_iter_tilted() {
+        let order_data = read_json_data("./unit_test_data/rbt_insert_orders.json");
+
+        // right-tilted tree
+        let expected_orders = &order_data["right_tilted"];
+        validate_into_order(new_tilted_tree, false, &expected_orders[19]);
+
+        // left-tilted tree
+        let expected_orders = &order_data["left_tilted"];
+        validate_into_order(new_tilted_tree, true, &expected_orders[19]);
+    }
 
     #[test]
     fn test_into_iter_compact() {
         let order_data = read_json_data("./unit_test_data/rbt_insert_orders.json");
+
+        // compact tree
+        let expected_orders = &order_data["compact"];
+        validate_into_order(new_compact_tree, false, &expected_orders[19]);
+
+        // compact-mirror tree
+        let expected_orders = &order_data["compact_mirror"];
+        validate_into_order(new_compact_tree, true, &expected_orders[19]);
     }
 
     #[test]
     fn test_into_iter_spread() {
         let order_data = read_json_data("./unit_test_data/rbt_insert_orders.json");
+
+        // compact tree
+        let expected_orders = &order_data["spread"];
+        validate_into_order(new_spread_tree, false, &expected_orders[19]);
+
+        // compact-mirror tree
+        let expected_orders = &order_data["spread_mirror"];
+        validate_into_order(new_spread_tree, true, &expected_orders[19]);
+    }
+
+    #[test]
+    fn test_into_iter_partial_consume() {
+        // partial consumption of the tree with into_iter in all traversal orders
+        // to ensure tree moved into iterator is dropped correctly without memory leaks
+        for order in [
+            TraversalOrder::Level,
+            TraversalOrder::Pre,
+            TraversalOrder::In,
+            TraversalOrder::Post,
+        ] {
+            let tree = new_tilted_tree(false);
+            let mut iter = tree.into_iter(order);
+            for _i in 1..=10 {
+                iter.next();
+            }
+        }
     }
 }

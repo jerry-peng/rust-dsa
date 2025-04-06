@@ -115,6 +115,10 @@ mod tests {
     #[test]
     fn test_all_ops() {
         // test empty queue
+        let queue = Queue::<usize>::default();
+        assert_eq!(queue.peek(), None);
+        assert_eq!(queue.len(), 0);
+        assert!(queue.is_empty());
         let mut queue = Queue::<usize>::new();
         assert_eq!(queue.peek(), None);
         assert_eq!(queue.len(), 0);

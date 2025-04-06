@@ -121,6 +121,10 @@ mod tests {
     #[test]
     fn test_all_ops() {
         // test empty stack
+        let stack = Stack::<usize>::default();
+        assert_eq!(stack.peek(), None);
+        assert_eq!(stack.len(), 0);
+        assert!(stack.is_empty());
         let mut stack = Stack::<usize>::new();
         assert_eq!(stack.peek(), None);
         assert_eq!(stack.len(), 0);

@@ -332,8 +332,8 @@ impl<T: Ord + Debug> BinarySearchTree<T> {
     /// ```
     /// use dsa::binary_search_tree::BinarySearchTree;
     /// let mut tree: BinarySearchTree<i32> = BinarySearchTree::new();
-    /// tree.insert(10);
     /// tree.insert(5);
+    /// tree.insert(10);
     /// assert_eq!(tree.max(), Some(&10));
     /// tree.pop_max();
     /// assert_eq!(tree.max(), Some(&5));
@@ -377,8 +377,8 @@ impl<T: Ord + Debug> BinarySearchTree<T> {
     /// ```
     /// use dsa::binary_search_tree::BinarySearchTree;
     /// let mut tree: BinarySearchTree<i32> = BinarySearchTree::new();
-    /// tree.insert(10);
     /// tree.insert(5);
+    /// tree.insert(10);
     /// assert_eq!(tree.pop_max(), Some(10));
     /// assert_eq!(tree.pop_max(), Some(5));
     /// assert_eq!(tree.pop_max(), None);
@@ -803,7 +803,6 @@ where
 mod tests {
     use super::*;
     use serde_json::{self, Value};
-    use std::cmp::{max, min};
     use std::fs;
     use std::path;
 
@@ -869,20 +868,30 @@ mod tests {
         tree
     }
 
+    /// Validate binary-search tree
+    ///
+    /// * `tree`: ref to binary-search tree
     fn validate_bst(tree: &BinarySearchTree<i32>) {
-        // node, min, max
+        // first node has no lower/upper bound
         let min_val: Option<i32> = None;
         let max_val: Option<i32> = None;
+
+        // empty tree is always valid
         if tree.root.0.is_none() {
             return;
         }
+
+        // Each item in queue represent a node, and its upper/lower bound
         let mut queue = vec![(tree.root.0.as_ref().unwrap(), min_val, max_val)];
 
+        // pop a queue item
         while let Some(queue_item) = queue.pop() {
+            // unpack queue item
             let node = queue_item.0;
             let min_val = queue_item.1;
             let max_val = queue_item.2;
 
+            // if min/max is present, validate node item is within bound
             match (min_val, max_val) {
                 (None, None) => {}
                 (None, Some(max)) => assert!(node.item < max),
@@ -890,19 +899,15 @@ mod tests {
                 (Some(min), Some(max)) => assert!(node.item > min && node.item < max),
             }
 
+            // push left child to processing queue; left child's upper bound
+            // is current node's item
             if let Some(left_node) = node.left.0.as_ref() {
-                queue.push((
-                    left_node,
-                    min_val,
-                    Some(max_val.map_or(node.item, |val| min(val, node.item))),
-                ));
+                queue.push((left_node, min_val, Some(node.item)));
             }
+            // push right child to processing queue; right child's lower bound
+            // is current node's item
             if let Some(right_node) = node.right.0.as_ref() {
-                queue.push((
-                    right_node,
-                    Some(min_val.map_or(node.item, |val| max(val, node.item))),
-                    max_val,
-                ));
+                queue.push((right_node, Some(node.item), max_val));
             }
         }
     }
@@ -913,6 +918,10 @@ mod tests {
         serde_json::from_str(insert_order_json_string.as_str()).unwrap()
     }
 
+    /// Validate binary-search tree's traversal order
+    ///
+    /// * `tree`: ref to binary-search tree
+    /// * `expected_orders`: expected traversal order
     fn validate_order(tree: &BinarySearchTree<i32>, expected_orders: &Value) {
         let order_types = vec![
             (TraversalOrder::Level, "level"),
@@ -920,6 +929,7 @@ mod tests {
             (TraversalOrder::Pre, "pre"),
             (TraversalOrder::Post, "post"),
         ];
+        // for each traversal order, iterate the tree and compare it with expected order
         for order_type in order_types {
             let actual_order: Vec<i32> = tree.iter(order_type.0).copied().collect();
             let expected_order: Vec<i32> = expected_orders[order_type.1]
