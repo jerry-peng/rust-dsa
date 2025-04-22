@@ -120,7 +120,7 @@ impl RadixTree {
         self.size == 0
     }
 
-    pub fn insert(&mut self, word: &String) -> Result<(), DuplicateItemErr> {
+    pub fn insert(&mut self, word: &str) -> Result<(), DuplicateItemErr> {
         let mut curr_node = &mut self.root;
         let mut word_iter = word.bytes();
 
@@ -170,7 +170,7 @@ impl RadixTree {
         Ok(())
     }
 
-    pub fn remove(&mut self, word: &String) -> bool {
+    pub fn remove(&mut self, word: &str) -> bool {
         let mut curr_node = &mut self.root;
         let mut word_iter = word.bytes();
 
@@ -241,7 +241,7 @@ impl RadixTree {
         }
     }
 
-    pub fn contains_exact(&self, word: &String) -> bool {
+    pub fn contains_exact(&self, word: &str) -> bool {
         let mut curr_node = &self.root;
         let mut word_iter = word.bytes();
 
@@ -262,7 +262,7 @@ impl RadixTree {
         }
     }
 
-    pub fn contains_prefix(&self, word: &String) -> bool {
+    pub fn contains_prefix(&self, word: &str) -> bool {
         let mut curr_node = &self.root;
         let mut word_iter = word.bytes();
 
@@ -355,24 +355,24 @@ mod tests {
         };
 
         let mut tree = RadixTree::new();
-        let word = "abc".to_string();
+        let word = "abc";
 
         // validate before mutate
         assert_eq!(tree, old_expected_tree);
-        assert!(!tree.contains_exact(&word));
-        assert!(!tree.contains_prefix(&word));
+        assert!(!tree.contains_exact(word));
+        assert!(!tree.contains_prefix(word));
 
         // insert and validate
-        assert_eq!(tree.insert(&word), Ok(()));
+        assert_eq!(tree.insert(word), Ok(()));
         assert_eq!(tree, new_expected_tree);
-        assert!(tree.contains_exact(&word));
-        assert!(tree.contains_prefix(&word));
+        assert!(tree.contains_exact(word));
+        assert!(tree.contains_prefix(word));
 
         // remove and validate
-        assert!(tree.remove(&word));
+        assert!(tree.remove(word));
         assert_eq!(tree, old_expected_tree);
-        assert!(!tree.contains_exact(&word));
-        assert!(!tree.contains_prefix(&word));
+        assert!(!tree.contains_exact(word));
+        assert!(!tree.contains_prefix(word));
     }
 
     #[test]
@@ -414,25 +414,25 @@ mod tests {
         };
 
         let mut tree = RadixTree::new();
-        let word = "🎉".to_string();
-        assert_eq!(tree.insert(&"🎌".to_string()), Ok(()));
+        let word = "🎉";
+        assert_eq!(tree.insert("🎌"), Ok(()));
 
         // validate before mutate
         assert_eq!(tree, old_expected_tree);
-        assert!(!tree.contains_exact(&word));
-        assert!(!tree.contains_prefix(&word));
+        assert!(!tree.contains_exact(word));
+        assert!(!tree.contains_prefix(word));
 
         // insert and validate
-        assert_eq!(tree.insert(&word), Ok(()));
+        assert_eq!(tree.insert(word), Ok(()));
         assert_eq!(tree, new_expected_tree);
-        assert!(tree.contains_exact(&word));
-        assert!(tree.contains_prefix(&word));
+        assert!(tree.contains_exact(word));
+        assert!(tree.contains_prefix(word));
 
         // remove and validate
-        assert!(tree.remove(&word));
+        assert!(tree.remove(word));
         assert_eq!(tree, old_expected_tree);
-        assert!(!tree.contains_exact(&word));
-        assert!(!tree.contains_prefix(&word));
+        assert!(!tree.contains_exact(word));
+        assert!(!tree.contains_prefix(word));
     }
 
     #[test]
@@ -493,26 +493,26 @@ mod tests {
         };
 
         let mut tree = RadixTree::new();
-        let word = "aa".to_string();
-        assert_eq!(tree.insert(&"aab".to_string()), Ok(()));
-        assert_eq!(tree.insert(&"aac".to_string()), Ok(()));
+        let word = "aa";
+        assert_eq!(tree.insert("aab"), Ok(()));
+        assert_eq!(tree.insert("aac"), Ok(()));
 
         // validate before mutate
         assert_eq!(tree, old_expected_tree);
-        assert!(!tree.contains_exact(&word));
-        assert!(tree.contains_prefix(&word));
+        assert!(!tree.contains_exact(word));
+        assert!(tree.contains_prefix(word));
 
         // insert and validate
-        assert_eq!(tree.insert(&word), Ok(()));
+        assert_eq!(tree.insert(word), Ok(()));
         assert_eq!(tree, new_expected_tree);
-        assert!(tree.contains_exact(&word));
-        assert!(tree.contains_prefix(&word));
+        assert!(tree.contains_exact(word));
+        assert!(tree.contains_prefix(word));
 
         // remove and validate
-        assert!(tree.remove(&word));
+        assert!(tree.remove(word));
         assert_eq!(tree, old_expected_tree);
-        assert!(!tree.contains_exact(&word));
-        assert!(tree.contains_prefix(&word));
+        assert!(!tree.contains_exact(word));
+        assert!(tree.contains_prefix(word));
     }
 
     #[test]
@@ -545,25 +545,25 @@ mod tests {
         };
 
         let mut tree = RadixTree::new();
-        let word = "aa".to_string();
-        assert_eq!(tree.insert(&"aab".to_string()), Ok(()));
+        let word = "aa";
+        assert_eq!(tree.insert("aab"), Ok(()));
 
         // validate before mutate
         assert_eq!(tree, old_expected_tree);
-        assert!(!tree.contains_exact(&word));
-        assert!(tree.contains_prefix(&word));
+        assert!(!tree.contains_exact(word));
+        assert!(tree.contains_prefix(word));
 
         // insert and validate
-        assert_eq!(tree.insert(&word), Ok(()));
+        assert_eq!(tree.insert(word), Ok(()));
         assert_eq!(tree, new_expected_tree);
-        assert!(tree.contains_exact(&word));
-        assert!(tree.contains_prefix(&word));
+        assert!(tree.contains_exact(word));
+        assert!(tree.contains_prefix(word));
 
         // remove and validate
-        assert!(tree.remove(&word));
+        assert!(tree.remove(word));
         assert_eq!(tree, old_expected_tree);
-        assert!(!tree.contains_exact(&word));
-        assert!(tree.contains_prefix(&word));
+        assert!(!tree.contains_exact(word));
+        assert!(tree.contains_prefix(word));
     }
 
     #[test]
@@ -634,26 +634,26 @@ mod tests {
         };
 
         let mut tree = RadixTree::new();
-        let word = "a".to_string();
-        assert_eq!(tree.insert(&"aab".to_string()), Ok(()));
-        assert_eq!(tree.insert(&"aac".to_string()), Ok(()));
+        let word = "a";
+        assert_eq!(tree.insert("aab"), Ok(()));
+        assert_eq!(tree.insert("aac"), Ok(()));
 
         // validate before mutate
         assert_eq!(tree, old_expected_tree);
-        assert!(!tree.contains_exact(&word));
-        assert!(tree.contains_prefix(&word));
+        assert!(!tree.contains_exact(word));
+        assert!(tree.contains_prefix(word));
 
         // insert and validate
-        assert_eq!(tree.insert(&word), Ok(()));
+        assert_eq!(tree.insert(word), Ok(()));
         assert_eq!(tree, new_expected_tree);
-        assert!(tree.contains_exact(&word));
-        assert!(tree.contains_prefix(&word));
+        assert!(tree.contains_exact(word));
+        assert!(tree.contains_prefix(word));
 
         // remove and validate
-        assert!(tree.remove(&word));
+        assert!(tree.remove(word));
         assert_eq!(tree, old_expected_tree);
-        assert!(!tree.contains_exact(&word));
-        assert!(tree.contains_prefix(&word));
+        assert!(!tree.contains_exact(word));
+        assert!(tree.contains_prefix(word));
     }
 
     #[test]
@@ -723,26 +723,26 @@ mod tests {
         };
 
         let mut tree = RadixTree::new();
-        let word = "aabd".to_string();
-        assert_eq!(tree.insert(&"aab".to_string()), Ok(()));
-        assert_eq!(tree.insert(&"aac".to_string()), Ok(()));
+        let word = "aabd";
+        assert_eq!(tree.insert("aab"), Ok(()));
+        assert_eq!(tree.insert("aac"), Ok(()));
 
         // validate before mutate
         assert_eq!(tree, old_expected_tree);
-        assert!(!tree.contains_exact(&word));
-        assert!(!tree.contains_prefix(&word));
+        assert!(!tree.contains_exact(word));
+        assert!(!tree.contains_prefix(word));
 
         // insert and validate
-        assert_eq!(tree.insert(&word), Ok(()));
+        assert_eq!(tree.insert(word), Ok(()));
         assert_eq!(tree, new_expected_tree);
-        assert!(tree.contains_exact(&word));
-        assert!(tree.contains_prefix(&word));
+        assert!(tree.contains_exact(word));
+        assert!(tree.contains_prefix(word));
 
         // remove and validate
-        assert!(tree.remove(&word));
+        assert!(tree.remove(word));
         assert_eq!(tree, old_expected_tree);
-        assert!(!tree.contains_exact(&word));
-        assert!(!tree.contains_prefix(&word));
+        assert!(!tree.contains_exact(word));
+        assert!(!tree.contains_prefix(word));
     }
 
     #[test]
@@ -784,25 +784,25 @@ mod tests {
         };
 
         let mut tree = RadixTree::new();
-        let word = "aac".to_string();
-        assert_eq!(tree.insert(&"aab".to_string()), Ok(()));
+        let word = "aac";
+        assert_eq!(tree.insert("aab"), Ok(()));
 
         // validate before mutate
         assert_eq!(tree, old_expected_tree);
-        assert!(!tree.contains_exact(&word));
-        assert!(!tree.contains_prefix(&word));
+        assert!(!tree.contains_exact(word));
+        assert!(!tree.contains_prefix(word));
 
         // insert and validate
-        assert_eq!(tree.insert(&word), Ok(()));
+        assert_eq!(tree.insert(word), Ok(()));
         assert_eq!(tree, new_expected_tree);
-        assert!(tree.contains_exact(&word));
-        assert!(tree.contains_prefix(&word));
+        assert!(tree.contains_exact(word));
+        assert!(tree.contains_prefix(word));
 
         // remove and validate
-        assert!(tree.remove(&word));
+        assert!(tree.remove(word));
         assert_eq!(tree, old_expected_tree);
-        assert!(!tree.contains_exact(&word));
-        assert!(!tree.contains_prefix(&word));
+        assert!(!tree.contains_exact(word));
+        assert!(!tree.contains_prefix(word));
     }
 
     #[test]
@@ -872,26 +872,26 @@ mod tests {
         };
 
         let mut tree = RadixTree::new();
-        let word = "ab".to_string();
-        assert_eq!(tree.insert(&"aa".to_string()), Ok(()));
-        assert_eq!(tree.insert(&"abc".to_string()), Ok(()));
+        let word = "ab";
+        assert_eq!(tree.insert("aa"), Ok(()));
+        assert_eq!(tree.insert("abc"), Ok(()));
 
         // validate before mutate
         assert_eq!(tree, old_expected_tree);
-        assert!(!tree.contains_exact(&word));
-        assert!(tree.contains_prefix(&word));
+        assert!(!tree.contains_exact(word));
+        assert!(tree.contains_prefix(word));
 
         // insert and validate
-        assert_eq!(tree.insert(&word), Ok(()));
+        assert_eq!(tree.insert(word), Ok(()));
         assert_eq!(tree, new_expected_tree);
-        assert!(tree.contains_exact(&word));
-        assert!(tree.contains_prefix(&word));
+        assert!(tree.contains_exact(word));
+        assert!(tree.contains_prefix(word));
 
         // remove and validate
-        assert!(tree.remove(&word));
+        assert!(tree.remove(word));
         assert_eq!(tree, old_expected_tree);
-        assert!(!tree.contains_exact(&word));
-        assert!(tree.contains_prefix(&word));
+        assert!(!tree.contains_exact(word));
+        assert!(tree.contains_prefix(word));
     }
 
     #[test]
@@ -990,27 +990,27 @@ mod tests {
         };
 
         let mut tree = RadixTree::new();
-        let word = "ab".to_string();
-        assert_eq!(tree.insert(&"aa".to_string()), Ok(()));
-        assert_eq!(tree.insert(&"abc".to_string()), Ok(()));
-        assert_eq!(tree.insert(&"abd".to_string()), Ok(()));
+        let word = "ab";
+        assert_eq!(tree.insert("aa"), Ok(()));
+        assert_eq!(tree.insert("abc"), Ok(()));
+        assert_eq!(tree.insert("abd"), Ok(()));
 
         // validate before mutate
         assert_eq!(tree, old_expected_tree);
-        assert!(!tree.contains_exact(&word));
-        assert!(tree.contains_prefix(&word));
+        assert!(!tree.contains_exact(word));
+        assert!(tree.contains_prefix(word));
 
         // insert and validate
-        assert_eq!(tree.insert(&word), Ok(()));
+        assert_eq!(tree.insert(word), Ok(()));
         assert_eq!(tree, new_expected_tree);
-        assert!(tree.contains_exact(&word));
-        assert!(tree.contains_prefix(&word));
+        assert!(tree.contains_exact(word));
+        assert!(tree.contains_prefix(word));
 
         // remove and validate
-        assert!(tree.remove(&word));
+        assert!(tree.remove(word));
         assert_eq!(tree, old_expected_tree);
-        assert!(!tree.contains_exact(&word));
-        assert!(tree.contains_prefix(&word));
+        assert!(!tree.contains_exact(word));
+        assert!(tree.contains_prefix(word));
     }
 
     #[test]
@@ -1063,27 +1063,27 @@ mod tests {
         };
 
         let mut tree = RadixTree::new();
-        assert_eq!(tree.insert(&"abcde".to_string()), Ok(()));
-        assert_eq!(tree.insert(&"abcfghi".to_string()), Ok(()));
-        assert_eq!(tree.insert(&"abcfgjk".to_string()), Ok(()));
+        assert_eq!(tree.insert("abcde"), Ok(()));
+        assert_eq!(tree.insert("abcfghi"), Ok(()));
+        assert_eq!(tree.insert("abcfgjk"), Ok(()));
 
         // validate tree shape
         assert_eq!(tree, expected_tree);
 
         // false if root chunk has identical word but is not word end
-        assert!(!tree.remove(&"abc".to_string()));
+        assert!(!tree.remove("abc"));
         // false if word in root chunk
-        assert!(!tree.remove(&"ab".to_string()));
+        assert!(!tree.remove("ab"));
         // false if root chunk and word mismatches
-        assert!(!tree.remove(&"abh".to_string()));
+        assert!(!tree.remove("abh"));
 
         // false if next node does not exist
-        assert!(!tree.remove(&"abch".to_string()));
+        assert!(!tree.remove("abch"));
         // false if next node chunk has identical word but is not word end
-        assert!(!tree.remove(&"abcfg".to_string()));
+        assert!(!tree.remove("abcfg"));
         // false if word in next node chunk
-        assert!(!tree.remove(&"abcf".to_string()));
+        assert!(!tree.remove("abcf"));
         // false if root chunk and word mismatches
-        assert!(!tree.remove(&"abcfh".to_string()));
+        assert!(!tree.remove("abcfh"));
     }
 }
