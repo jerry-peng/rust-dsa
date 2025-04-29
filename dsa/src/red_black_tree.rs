@@ -7,8 +7,8 @@ use std::mem;
 use std::ptr::NonNull;
 use std::{alloc, vec};
 
-#[derive(Debug, PartialEq)]
 /// Thrown after attempts to insert duplicate item
+#[derive(Debug, PartialEq)]
 pub struct DuplicateItemErr;
 
 /// Iterator traversal order
