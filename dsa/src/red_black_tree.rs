@@ -1662,9 +1662,9 @@ mod tests {
     }
 
     fn read_json_data(filepath: &str) -> Value {
-        let insert_order_json_string =
+        let json_string =
             fs::read_to_string(path::Path::new(filepath)).expect("Unable to read file");
-        serde_json::from_str(insert_order_json_string.as_str()).unwrap()
+        serde_json::from_str(json_string.as_str()).unwrap()
     }
 
     #[test]
