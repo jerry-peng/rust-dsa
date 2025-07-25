@@ -32,6 +32,8 @@ impl<T: Debug + Ord> BinaryHeap<T> {
 
     /// Creates new binary min heap
     ///
+    /// # Example
+    ///
     /// ```
     /// use dsa::binary_heap::BinaryHeap;
     /// let mut heap = BinaryHeap::<i32>::new_min_heap();
@@ -45,6 +47,8 @@ impl<T: Debug + Ord> BinaryHeap<T> {
 
     /// Creates new binary max heap
     ///
+    /// # Example
+    ///
     /// ```
     /// use dsa::binary_heap::BinaryHeap;
     /// let mut heap = BinaryHeap::<i32>::new_max_heap();
@@ -57,6 +61,8 @@ impl<T: Debug + Ord> BinaryHeap<T> {
     }
 
     /// Get number of items stored in heap
+    ///
+    /// # Example
     ///
     /// ```
     /// use dsa::binary_heap::BinaryHeap;
@@ -76,6 +82,8 @@ impl<T: Debug + Ord> BinaryHeap<T> {
 
     /// Get whether heap is empty
     ///
+    /// # Example
+    ///
     /// ```
     /// use dsa::binary_heap::BinaryHeap;
     /// let mut heap = BinaryHeap::<i32>::new_max_heap();
@@ -92,6 +100,8 @@ impl<T: Debug + Ord> BinaryHeap<T> {
     /// Push item to heap
     ///
     /// * `item`: item to push
+    ///
+    /// # Example
     ///
     /// ```
     /// use dsa::binary_heap::BinaryHeap;
@@ -125,6 +135,8 @@ impl<T: Debug + Ord> BinaryHeap<T> {
     }
 
     /// Pop item from heap
+    ///
+    /// # Example
     ///
     /// ```
     /// use dsa::binary_heap::BinaryHeap;
@@ -219,6 +231,8 @@ impl<T: Debug + Ord> BinaryHeap<T> {
     ///
     /// * `item`: item to push
     ///
+    /// # Example
+    ///
     /// ```
     /// use dsa::binary_heap::BinaryHeap;
     /// let mut heap = BinaryHeap::<i32>::new_max_heap();
@@ -242,6 +256,8 @@ impl<T: Debug + Ord> BinaryHeap<T> {
 
     /// Immutable peek min/max item in heap
     ///
+    /// # Example
+    ///
     /// ```
     /// use dsa::binary_heap::BinaryHeap;
     /// let mut heap = BinaryHeap::<i32>::new_max_heap();
@@ -260,6 +276,8 @@ impl<T: Debug + Ord> BinaryHeap<T> {
     }
 
     /// Mutable peek min/max item in heap
+    ///
+    /// # Example
     ///
     /// ```
     /// use dsa::binary_heap::BinaryHeap;
@@ -289,7 +307,8 @@ impl<T: Debug + Ord> BinaryHeap<T> {
         }
     }
 
-    /// Get child indices;
+    /// Get child index;
+    /// if index is 0, parent does not exist
     ///
     /// * `index`: index
     fn get_child_indices(index: usize) -> (usize, usize) {
@@ -350,9 +369,8 @@ mod tests {
     }
 
     fn read_json_data() -> Value {
-        let json_string =
-            fs::read_to_string(path::Path::new("./unit_test_data/binary_heap_orders.json"))
-                .expect("Unable to read file");
+        let json_string = fs::read_to_string(path::Path::new("./unit_test_data/binary_heap.json"))
+            .expect("Unable to read file");
         serde_json::from_str(json_string.as_str()).unwrap()
     }
 
@@ -366,6 +384,8 @@ mod tests {
 
     fn validate_heap<T: Debug + Ord>(heap: &BinaryHeap<T>) {
         let size = heap.size();
+        // for each item, ensure child items are not less than parents for min heap,
+        // and not greater than parents for max heap.
         for (index, item) in heap.items.iter().enumerate() {
             let (first_child_index, second_child_index) =
                 BinaryHeap::<i32>::get_child_indices(index);
@@ -402,6 +422,7 @@ mod tests {
         assert_eq!(heap.peek(), None);
         assert_eq!(heap.peek_mut(), None);
         validate_heap(&heap);
+
         // min heap
         let mut heap = BinaryHeap::<usize>::new_max_heap();
         assert_eq!(
@@ -416,6 +437,7 @@ mod tests {
         assert_eq!(heap.peek(), None);
         assert_eq!(heap.peek_mut(), None);
         validate_heap(&heap);
+
         // default
         let mut heap = BinaryHeap::<usize>::default();
         assert_eq!(
@@ -438,14 +460,17 @@ mod tests {
         let expected_heap_orders = read_json_data();
         let expected_orders = &expected_heap_orders["push"]["min"];
 
+        // test all item orders
         for (order, items) in heap_items {
             let mut heap = BinaryHeap::<i32>::new_min_heap();
             for (index, item) in items.iter().enumerate() {
+                // push and validate size and heap properties
                 heap.push(*item);
                 assert!(!heap.is_empty());
                 assert_eq!(heap.size(), index + 1);
                 validate_heap(&heap);
 
+                // validate peek and orders
                 let mut expected_orders = deserialize_list(&expected_orders[&order][index]);
                 assert_eq!(heap.peek(), Some(&expected_orders[0]));
                 assert_eq!(heap.peek_mut(), Some(&mut expected_orders[0]));
@@ -466,13 +491,17 @@ mod tests {
         let expected_heap_orders = read_json_data();
         let expected_orders = &expected_heap_orders["push"]["max"];
 
+        // test all item orders
         for (order, items) in heap_items {
             let mut heap = BinaryHeap::<i32>::new_max_heap();
             for (index, item) in items.iter().enumerate() {
+                // push and validate size and heap properties
                 heap.push(*item);
                 assert!(!heap.is_empty());
                 assert_eq!(heap.size(), index + 1);
                 validate_heap(&heap);
+
+                // validate peek and orders
                 let mut expected_orders = deserialize_list(&expected_orders[&order][index]);
                 assert_eq!(heap.peek(), Some(&expected_orders[0]));
                 assert_eq!(heap.peek_mut(), Some(&mut expected_orders[0]));
@@ -493,22 +522,34 @@ mod tests {
         let expected_heap_orders = read_json_data();
         let expected_orders = &expected_heap_orders["pop"]["min"];
 
+        // test all item orders
         for (order, items) in heap_items {
             let mut heap = BinaryHeap::<i32>::new_min_heap();
+
+            // push all items
             for item in items {
                 heap.push(item);
             }
 
+            // validate each pop
             for i in 0..10 {
+                // validate size
                 let i_as_i32 = i32::try_from(i).unwrap();
                 assert!(!heap.is_empty());
                 assert_eq!(heap.size(), 10 - i);
+
+                // pop and validate heap properties
                 assert_eq!(heap.pop(), Some(i_as_i32 + 1));
                 validate_heap(&heap);
+
+                // validate peek and orders
                 let mut expected_orders = deserialize_list(&expected_orders[&order][i]);
                 if i != 9 {
                     assert_eq!(heap.peek(), Some(&expected_orders[0]));
                     assert_eq!(heap.peek_mut(), Some(&mut expected_orders[0]));
+                } else {
+                    assert_eq!(heap.peek(), None);
+                    assert_eq!(heap.peek_mut(), None);
                 }
                 assert_eq!(
                     heap,
@@ -519,10 +560,10 @@ mod tests {
                 );
             }
 
+            // validate heap is empty
             assert!(heap.is_empty());
             assert_eq!(heap.size(), 0);
             assert_eq!(heap.pop(), None);
-            validate_heap(&heap);
         }
     }
 
@@ -532,22 +573,34 @@ mod tests {
         let expected_heap_orders = read_json_data();
         let expected_orders = &expected_heap_orders["pop"]["max"];
 
+        // test all item orders
         for (order, items) in heap_items {
             let mut heap = BinaryHeap::<i32>::new_max_heap();
+
+            // push all items
             for item in items {
                 heap.push(item);
             }
 
+            // validate each pop
             for i in 0..10 {
+                // validate size
                 let i_as_i32 = i32::try_from(i).unwrap();
                 assert!(!heap.is_empty());
                 assert_eq!(heap.size(), 10 - i);
+
+                // pop and validate heap properties
                 assert_eq!(heap.pop(), Some(10 - i_as_i32));
                 validate_heap(&heap);
+
+                // validate peek and orders
                 let mut expected_orders = deserialize_list(&expected_orders[&order][i]);
                 if i != 9 {
                     assert_eq!(heap.peek(), Some(&expected_orders[0]));
                     assert_eq!(heap.peek_mut(), Some(&mut expected_orders[0]));
+                } else {
+                    assert_eq!(heap.peek(), None);
+                    assert_eq!(heap.peek_mut(), None);
                 }
                 assert_eq!(
                     heap,
@@ -558,6 +611,7 @@ mod tests {
                 );
             }
 
+            // validate heap is empty
             assert!(heap.is_empty());
             assert_eq!(heap.size(), 0);
             assert_eq!(heap.pop(), None);
@@ -599,26 +653,34 @@ mod tests {
         let expected_heap_orders = read_json_data();
         let expected_orders = &expected_heap_orders["pop_push"]["min"];
 
+        // test each item order
         for (order, items) in heap_items {
             let mut heap = BinaryHeap::<i32>::new_min_heap();
+
+            // push 5 items and validate size
             for item in &items[0..5] {
                 heap.push(*item);
             }
             assert!(!heap.is_empty());
             assert_eq!(heap.size(), 5);
 
+            // pop-push rest of the items
             for index in 5..10 {
                 let expected_popped_item = if index == 5 {
                     items[0..5].to_vec().iter().min().copied()
                 } else {
                     Some(deserialize_list(&expected_orders[&order][index - 6])[0])
                 };
-                let mut expected_orders = deserialize_list(&expected_orders[&order][index - 5]);
-                let item = items[index];
-                assert_eq!(heap.pop_push(item), expected_popped_item);
+
+                // pop-push and validate size and heap properties
+                let push_item = items[index];
+                assert_eq!(heap.pop_push(push_item), expected_popped_item);
                 assert!(!heap.is_empty());
                 assert_eq!(heap.size(), 5);
                 validate_heap(&heap);
+
+                // validate order
+                let mut expected_orders = deserialize_list(&expected_orders[&order][index - 5]);
                 assert_eq!(heap.peek(), Some(&expected_orders[0]));
                 assert_eq!(heap.peek_mut(), Some(&mut expected_orders[0]));
                 assert_eq!(
@@ -638,26 +700,34 @@ mod tests {
         let expected_heap_orders = read_json_data();
         let expected_orders = &expected_heap_orders["pop_push"]["max"];
 
+        // test each item order
         for (order, items) in heap_items {
             let mut heap = BinaryHeap::<i32>::new_max_heap();
+
+            // push 5 items and validate size
             for item in &items[0..5] {
                 heap.push(*item);
             }
             assert!(!heap.is_empty());
             assert_eq!(heap.size(), 5);
 
+            // pop-push rest of the items
             for index in 5..10 {
                 let expected_popped_item = if index == 5 {
                     items[0..5].to_vec().iter().max().copied()
                 } else {
                     Some(deserialize_list(&expected_orders[&order][index - 6])[0])
                 };
-                let mut expected_orders = deserialize_list(&expected_orders[&order][index - 5]);
-                let item = items[index];
-                assert_eq!(heap.pop_push(item), expected_popped_item);
+
+                // pop-push and validate size and heap properties
+                let push_item = items[index];
+                assert_eq!(heap.pop_push(push_item), expected_popped_item);
                 assert!(!heap.is_empty());
                 assert_eq!(heap.size(), 5);
                 validate_heap(&heap);
+
+                // validate order
+                let mut expected_orders = deserialize_list(&expected_orders[&order][index - 5]);
                 assert_eq!(heap.peek(), Some(&expected_orders[0]));
                 assert_eq!(heap.peek_mut(), Some(&mut expected_orders[0]));
                 assert_eq!(
@@ -679,6 +749,7 @@ mod tests {
             for item in items {
                 heap.push(item);
             }
+            // verify order is ascending
             assert_eq!(
                 heap.into_iter().collect::<Vec<i32>>(),
                 (1..=10).collect::<Vec<i32>>()
@@ -694,6 +765,7 @@ mod tests {
             for item in items {
                 heap.push(item);
             }
+            // verify order is descending
             assert_eq!(
                 heap.into_iter().collect::<Vec<i32>>(),
                 (1..=10).rev().collect::<Vec<i32>>()
@@ -703,6 +775,7 @@ mod tests {
 
     #[test]
     fn test_min_heap_with_duplicate() {
+        // test push 2 duplicate items then pop both
         let mut heap = BinaryHeap::<i32>::new_min_heap();
         heap.push(5);
         heap.push(5);
@@ -714,6 +787,7 @@ mod tests {
         assert_eq!(heap.peek(), None);
         assert_eq!(heap.pop(), None);
 
+        // test push 2 duplicate items then pop-push both
         let mut heap = BinaryHeap::<i32>::new_min_heap();
         heap.push(5);
         heap.push(5);
@@ -733,6 +807,7 @@ mod tests {
 
     #[test]
     fn test_max_heap_with_duplicate() {
+        // test push 2 duplicate items then pop both
         let mut heap = BinaryHeap::<i32>::new_max_heap();
         heap.push(5);
         heap.push(5);
@@ -744,6 +819,7 @@ mod tests {
         assert_eq!(heap.peek(), None);
         assert_eq!(heap.pop(), None);
 
+        // test push 2 duplicate items then pop-push both
         let mut heap = BinaryHeap::<i32>::new_max_heap();
         heap.push(5);
         heap.push(5);

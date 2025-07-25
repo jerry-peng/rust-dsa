@@ -760,7 +760,7 @@ mod tests {
         };
         let new_expected_tree = RadixTrie {
             root: Node {
-                chunk: vec![97, 98, 99],
+                chunk: vec![b'a', b'b', b'c'],
                 is_end: true,
                 nodes: HashMap::new(),
             },
@@ -833,7 +833,7 @@ mod tests {
     fn test_empty_string_non_empty_tree() {
         let old_expected_tree = RadixTrie {
             root: Node {
-                chunk: vec![97, 98, 99],
+                chunk: vec![b'a', b'b', b'c'],
                 is_end: true,
                 nodes: HashMap::new(),
             },
@@ -844,9 +844,9 @@ mod tests {
                 chunk: Vec::new(),
                 is_end: true,
                 nodes: [(
-                    97,
+                    b'a',
                     Node {
-                        chunk: vec![98, 99],
+                        chunk: vec![b'b', b'c'],
                         is_end: true,
                         nodes: HashMap::new(),
                     },
@@ -944,11 +944,11 @@ mod tests {
     fn test_mark_common_substring_is_end() {
         let old_expected_tree = RadixTrie {
             root: Node {
-                chunk: vec![97, 97],
+                chunk: vec![b'a', b'a'],
                 is_end: false,
                 nodes: [
                     (
-                        98,
+                        b'b',
                         Node {
                             chunk: Vec::new(),
                             is_end: true,
@@ -956,7 +956,7 @@ mod tests {
                         },
                     ),
                     (
-                        99,
+                        b'c',
                         Node {
                             chunk: Vec::new(),
                             is_end: true,
@@ -971,11 +971,11 @@ mod tests {
         };
         let new_expected_tree = RadixTrie {
             root: Node {
-                chunk: vec![97, 97],
+                chunk: vec![b'a', b'a'],
                 is_end: true,
                 nodes: [
                     (
-                        98,
+                        b'b',
                         Node {
                             chunk: Vec::new(),
                             is_end: true,
@@ -983,7 +983,7 @@ mod tests {
                         },
                     ),
                     (
-                        99,
+                        b'c',
                         Node {
                             chunk: Vec::new(),
                             is_end: true,
@@ -1025,7 +1025,7 @@ mod tests {
     fn test_word_in_chunk_old_node_is_end() {
         let old_expected_tree = RadixTrie {
             root: Node {
-                chunk: vec![97, 97, 98],
+                chunk: vec![b'a', b'a', b'b'],
                 is_end: true,
                 nodes: HashMap::new(),
             },
@@ -1033,10 +1033,10 @@ mod tests {
         };
         let new_expected_tree = RadixTrie {
             root: Node {
-                chunk: vec![97, 97],
+                chunk: vec![b'a', b'a'],
                 is_end: true,
                 nodes: [(
-                    98,
+                    b'b',
                     Node {
                         chunk: Vec::new(),
                         is_end: true,
@@ -1077,11 +1077,11 @@ mod tests {
     fn test_word_in_chunk_old_node_is_not_end() {
         let old_expected_tree = RadixTrie {
             root: Node {
-                chunk: vec![97, 97],
+                chunk: vec![b'a', b'a'],
                 is_end: false,
                 nodes: [
                     (
-                        98,
+                        b'b',
                         Node {
                             chunk: Vec::new(),
                             is_end: true,
@@ -1089,7 +1089,7 @@ mod tests {
                         },
                     ),
                     (
-                        99,
+                        b'c',
                         Node {
                             chunk: Vec::new(),
                             is_end: true,
@@ -1104,16 +1104,16 @@ mod tests {
         };
         let new_expected_tree = RadixTrie {
             root: Node {
-                chunk: vec![97],
+                chunk: vec![b'a'],
                 is_end: true,
                 nodes: [(
-                    97,
+                    b'a',
                     Node {
                         chunk: Vec::new(),
                         is_end: false,
                         nodes: [
                             (
-                                98,
+                                b'b',
                                 Node {
                                     chunk: Vec::new(),
                                     is_end: true,
@@ -1121,7 +1121,7 @@ mod tests {
                                 },
                             ),
                             (
-                                99,
+                                b'c',
                                 Node {
                                     chunk: Vec::new(),
                                     is_end: true,
@@ -1168,11 +1168,11 @@ mod tests {
     fn test_chunk_in_word() {
         let old_expected_tree = RadixTrie {
             root: Node {
-                chunk: vec![97, 97],
+                chunk: vec![b'a', b'a'],
                 is_end: false,
                 nodes: [
                     (
-                        98,
+                        b'b',
                         Node {
                             chunk: Vec::new(),
                             is_end: true,
@@ -1180,7 +1180,7 @@ mod tests {
                         },
                     ),
                     (
-                        99,
+                        b'c',
                         Node {
                             chunk: Vec::new(),
                             is_end: true,
@@ -1195,16 +1195,16 @@ mod tests {
         };
         let new_expected_tree = RadixTrie {
             root: Node {
-                chunk: vec![97, 97],
+                chunk: vec![b'a', b'a'],
                 is_end: false,
                 nodes: [
                     (
-                        98,
+                        b'b',
                         Node {
                             chunk: Vec::new(),
                             is_end: true,
                             nodes: [(
-                                100,
+                                b'd',
                                 Node {
                                     chunk: Vec::new(),
                                     is_end: true,
@@ -1216,7 +1216,7 @@ mod tests {
                         },
                     ),
                     (
-                        99,
+                        b'c',
                         Node {
                             chunk: Vec::new(),
                             is_end: true,
@@ -1258,7 +1258,7 @@ mod tests {
     fn test_mismatch() {
         let old_expected_tree = RadixTrie {
             root: Node {
-                chunk: vec![97, 97, 98],
+                chunk: vec![b'a', b'a', b'b'],
                 is_end: true,
                 nodes: HashMap::new(),
             },
@@ -1266,11 +1266,11 @@ mod tests {
         };
         let new_expected_tree = RadixTrie {
             root: Node {
-                chunk: vec![97, 97],
+                chunk: vec![b'a', b'a'],
                 is_end: false,
                 nodes: [
                     (
-                        98,
+                        b'b',
                         Node {
                             chunk: Vec::new(),
                             is_end: true,
@@ -1278,7 +1278,7 @@ mod tests {
                         },
                     ),
                     (
-                        99,
+                        b'c',
                         Node {
                             chunk: Vec::new(),
                             is_end: true,
@@ -1319,11 +1319,11 @@ mod tests {
     fn test_remove_identical_chunk_with_one_child_node() {
         let old_expected_tree = RadixTrie {
             root: Node {
-                chunk: vec![97],
+                chunk: vec![b'a'],
                 is_end: false,
                 nodes: [
                     (
-                        97,
+                        b'a',
                         Node {
                             chunk: Vec::new(),
                             is_end: true,
@@ -1331,9 +1331,9 @@ mod tests {
                         },
                     ),
                     (
-                        98,
+                        b'b',
                         Node {
-                            chunk: vec![99],
+                            chunk: vec![b'c'],
                             is_end: true,
                             nodes: HashMap::new(),
                         },
@@ -1346,11 +1346,11 @@ mod tests {
         };
         let new_expected_tree = RadixTrie {
             root: Node {
-                chunk: vec![97],
+                chunk: vec![b'a'],
                 is_end: false,
                 nodes: [
                     (
-                        97,
+                        b'a',
                         Node {
                             chunk: Vec::new(),
                             is_end: true,
@@ -1358,12 +1358,12 @@ mod tests {
                         },
                     ),
                     (
-                        98,
+                        b'b',
                         Node {
                             chunk: Vec::new(),
                             is_end: true,
                             nodes: [(
-                                99,
+                                b'c',
                                 Node {
                                     chunk: Vec::new(),
                                     is_end: true,
@@ -1409,11 +1409,11 @@ mod tests {
     fn test_remove_identical_chunk_with_two_child_node() {
         let old_expected_tree = RadixTrie {
             root: Node {
-                chunk: vec![97],
+                chunk: vec![b'a'],
                 is_end: false,
                 nodes: [
                     (
-                        97,
+                        b'a',
                         Node {
                             chunk: Vec::new(),
                             is_end: true,
@@ -1421,13 +1421,13 @@ mod tests {
                         },
                     ),
                     (
-                        98,
+                        b'b',
                         Node {
                             chunk: Vec::new(),
                             is_end: false,
                             nodes: [
                                 (
-                                    99,
+                                    b'c',
                                     Node {
                                         chunk: Vec::new(),
                                         is_end: true,
@@ -1435,7 +1435,7 @@ mod tests {
                                     },
                                 ),
                                 (
-                                    100,
+                                    b'd',
                                     Node {
                                         chunk: Vec::new(),
                                         is_end: true,
@@ -1455,11 +1455,11 @@ mod tests {
         };
         let new_expected_tree = RadixTrie {
             root: Node {
-                chunk: vec![97],
+                chunk: vec![b'a'],
                 is_end: false,
                 nodes: [
                     (
-                        97,
+                        b'a',
                         Node {
                             chunk: Vec::new(),
                             is_end: true,
@@ -1467,13 +1467,13 @@ mod tests {
                         },
                     ),
                     (
-                        98,
+                        b'b',
                         Node {
                             chunk: Vec::new(),
                             is_end: true,
                             nodes: [
                                 (
-                                    99,
+                                    b'c',
                                     Node {
                                         chunk: Vec::new(),
                                         is_end: true,
@@ -1481,7 +1481,7 @@ mod tests {
                                     },
                                 ),
                                 (
-                                    100,
+                                    b'd',
                                     Node {
                                         chunk: Vec::new(),
                                         is_end: true,
@@ -1529,35 +1529,35 @@ mod tests {
     fn test_remove_negative() {
         let expected_tree = RadixTrie {
             root: Node {
-                chunk: vec![97, 98, 99],
+                chunk: vec![b'a', b'b', b'c'],
                 is_end: false,
                 nodes: [
                     (
-                        100,
+                        b'd',
                         Node {
-                            chunk: vec![101],
+                            chunk: vec![b'e'],
                             is_end: true,
                             nodes: HashMap::new(),
                         },
                     ),
                     (
-                        102,
+                        b'f',
                         Node {
-                            chunk: vec![103],
+                            chunk: vec![b'g'],
                             is_end: false,
                             nodes: [
                                 (
-                                    104,
+                                    b'h',
                                     Node {
-                                        chunk: vec![105],
+                                        chunk: vec![b'i'],
                                         is_end: true,
                                         nodes: HashMap::new(),
                                     },
                                 ),
                                 (
-                                    106,
+                                    b'j',
                                     Node {
-                                        chunk: vec![107],
+                                        chunk: vec![b'k'],
                                         is_end: true,
                                         nodes: HashMap::new(),
                                     },

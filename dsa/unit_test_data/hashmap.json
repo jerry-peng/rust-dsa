@@ -1,0 +1,599 @@
+{
+  "quadratic_probing": {
+    "insert": [
+      {
+        "hashmap": {
+          "capacity": 11,
+          "entries": [
+            {
+              "index": 4,
+              "key": "J",
+              "value": 10
+            }
+          ],
+          "tombstones": []
+        }
+      },
+      {
+        "hashmap": {
+          "capacity": 11,
+          "entries": [
+            {
+              "index": 4,
+              "key": "J",
+              "value": 10
+            },
+            {
+              "index": 5,
+              "key": "Q",
+              "value": 20
+            }
+          ],
+          "tombstones": []
+        }
+      },
+      {
+        "hashmap": {
+          "capacity": 11,
+          "entries": [
+            {
+              "index": 4,
+              "key": "J",
+              "value": 10
+            },
+            {
+              "index": 5,
+              "key": "Q",
+              "value": 20
+            },
+            {
+              "index": 8,
+              "key": "a",
+              "value": 30
+            }
+          ],
+          "tombstones": []
+        }
+      },
+      {
+        "hashmap": {
+          "capacity": 11,
+          "entries": [
+            {
+              "index": 4,
+              "key": "J",
+              "value": 10
+            },
+            {
+              "index": 5,
+              "key": "Q",
+              "value": 20
+            },
+            {
+              "index": 8,
+              "key": "a",
+              "value": 30
+            },
+            {
+              "index": 2,
+              "key": "l",
+              "value": 40
+            }
+          ],
+          "tombstones": []
+        }
+      },
+      {
+        "hashmap": {
+          "capacity": 11,
+          "entries": [
+            {
+              "index": 4,
+              "key": "J",
+              "value": 10
+            },
+            {
+              "index": 5,
+              "key": "Q",
+              "value": 20
+            },
+            {
+              "index": 8,
+              "key": "a",
+              "value": 30
+            },
+            {
+              "index": 2,
+              "key": "l",
+              "value": 40
+            },
+            {
+              "index": 9,
+              "key": "r",
+              "value": 50
+            }
+          ],
+          "tombstones": []
+        }
+      },
+      {
+        "hashmap": {
+          "capacity": 11,
+          "entries": [
+            {
+              "index": 4,
+              "key": "J",
+              "value": 10
+            },
+            {
+              "index": 5,
+              "key": "Q",
+              "value": 20
+            },
+            {
+              "index": 8,
+              "key": "a",
+              "value": 30
+            },
+            {
+              "index": 2,
+              "key": "l",
+              "value": 40
+            },
+            {
+              "index": 9,
+              "key": "r",
+              "value": 50
+            },
+            {
+              "index": 7,
+              "key": "y",
+              "value": 60
+            }
+          ],
+          "tombstones": []
+        }
+      }
+    ],
+    "remove": [
+      {
+        "entry": {
+          "key": "J",
+          "value": 10
+        },
+        "hashmap": {
+          "capacity": 11,
+          "entries": [
+            {
+              "index": 5,
+              "key": "Q",
+              "value": 20
+            },
+            {
+              "index": 8,
+              "key": "a",
+              "value": 30
+            },
+            {
+              "index": 2,
+              "key": "l",
+              "value": 40
+            },
+            {
+              "index": 9,
+              "key": "r",
+              "value": 50
+            },
+            {
+              "index": 7,
+              "key": "y",
+              "value": 60
+            }
+          ],
+          "tombstones": [4]
+        }
+      },
+      {
+        "entry": {
+          "key": "a",
+          "value": 30
+        },
+        "hashmap": {
+          "capacity": 11,
+          "entries": [
+            {
+              "index": 5,
+              "key": "Q",
+              "value": 20
+            },
+            {
+              "index": 2,
+              "key": "l",
+              "value": 40
+            },
+            {
+              "index": 9,
+              "key": "r",
+              "value": 50
+            },
+            {
+              "index": 7,
+              "key": "y",
+              "value": 60
+            }
+          ],
+          "tombstones": [4, 8]
+        }
+      },
+      {
+        "entry": {
+          "key": "r",
+          "value": 50
+        },
+        "hashmap": {
+          "capacity": 11,
+          "entries": [
+            {
+              "index": 5,
+              "key": "Q",
+              "value": 20
+            },
+            {
+              "index": 2,
+              "key": "l",
+              "value": 40
+            },
+            {
+              "index": 7,
+              "key": "y",
+              "value": 60
+            }
+          ],
+          "tombstones": [4, 8, 9]
+        }
+      },
+      {
+        "entry": {
+          "key": "y",
+          "value": 60
+        },
+        "hashmap": {
+          "capacity": 11,
+          "entries": [
+            {
+              "index": 5,
+              "key": "Q",
+              "value": 20
+            },
+            {
+              "index": 2,
+              "key": "l",
+              "value": 40
+            }
+          ],
+          "tombstones": [4, 7, 8, 9]
+        }
+      },
+      {
+        "entry": {
+          "key": "l",
+          "value": 40
+        },
+        "hashmap": {
+          "capacity": 11,
+          "entries": [
+            {
+              "index": 5,
+              "key": "Q",
+              "value": 20
+            }
+          ],
+          "tombstones": [2, 4, 7, 8, 9]
+        }
+      },
+      {
+        "entry": {
+          "key": "Q",
+          "value": 20
+        },
+        "hashmap": {
+          "capacity": 11,
+          "entries": [],
+          "tombstones": [2, 4, 5, 7, 8, 9]
+        }
+      }
+    ]
+  },
+  "insert_expand": {
+    "before": {
+      "hashmap": {
+        "capacity": 11,
+        "entries": [
+          {
+            "index": 4,
+            "key": "J",
+            "value": 10
+          },
+          {
+            "index": 5,
+            "key": "Q",
+            "value": 20
+          },
+          {
+            "index": 8,
+            "key": "a",
+            "value": 30
+          },
+          {
+            "index": 2,
+            "key": "l",
+            "value": 40
+          },
+          {
+            "index": 9,
+            "key": "r",
+            "value": 50
+          },
+          {
+            "index": 7,
+            "key": "y",
+            "value": 60
+          }
+        ],
+        "tombstones": []
+      }
+    },
+    "after": {
+      "hashmap": {
+        "capacity": 22,
+        "entries": [
+          {
+            "index": 4,
+            "key": "l",
+            "value": 40
+          },
+          {
+            "index": 5,
+            "key": "J",
+            "value": 10
+          },
+          {
+            "index": 8,
+            "key": "r",
+            "value": 50
+          },
+          {
+            "index": 10,
+            "key": "B",
+            "value": 70
+          },
+          {
+            "index": 15,
+            "key": "Q",
+            "value": 20
+          },
+          {
+            "index": 16,
+            "key": "y",
+            "value": 60
+          },
+          {
+            "index": 19,
+            "key": "a",
+            "value": 30
+          }
+        ],
+        "tombstones": []
+      }
+    }
+  },
+  "insert_probe_cycle": {
+    "before": {
+      "hashmap": {
+        "capacity": 11,
+        "entries": [
+          {
+            "index": 4,
+            "key": "J",
+            "value": 10
+          },
+          {
+            "index": 5,
+            "key": "Q",
+            "value": 20
+          },
+          {
+            "index": 8,
+            "key": "a",
+            "value": 30
+          },
+          {
+            "index": 2,
+            "key": "l",
+            "value": 40
+          },
+          {
+            "index": 9,
+            "key": "r",
+            "value": 50
+          },
+          {
+            "index": 7,
+            "key": "y",
+            "value": 60
+          }
+        ],
+        "tombstones": []
+      }
+    },
+    "after": {
+      "hashmap": {
+        "capacity": 22,
+        "entries": [
+          {
+            "index": 2,
+            "key": "ab",
+            "value": 70
+          },
+          {
+            "index": 4,
+            "key": "l",
+            "value": 40
+          },
+          {
+            "index": 5,
+            "key": "J",
+            "value": 10
+          },
+          {
+            "index": 8,
+            "key": "r",
+            "value": 50
+          },
+          {
+            "index": 15,
+            "key": "Q",
+            "value": 20
+          },
+          {
+            "index": 16,
+            "key": "y",
+            "value": 60
+          },
+          {
+            "index": 19,
+            "key": "a",
+            "value": 30
+          }
+        ],
+        "tombstones": []
+      }
+    }
+  },
+  "insert_tombstones": {
+    "initial": {
+      "hashmap": {
+        "capacity": 11,
+        "entries": [],
+        "tombstones": [2, 4, 5, 8, 9]
+      }
+    },
+    "insert": [
+      {
+        "hashmap": {
+          "capacity": 11,
+          "entries": [
+            {
+              "index": 4,
+              "key": "J",
+              "value": 10
+            }
+          ],
+          "tombstones": [2, 5, 8, 9]
+        }
+      },
+      {
+        "hashmap": {
+          "capacity": 11,
+          "entries": [
+            {
+              "index": 4,
+              "key": "J",
+              "value": 10
+            },
+            {
+              "index": 5,
+              "key": "Q",
+              "value": 20
+            }
+          ],
+          "tombstones": [2, 8, 9]
+        }
+      },
+      {
+        "hashmap": {
+          "capacity": 11,
+          "entries": [
+            {
+              "index": 4,
+              "key": "J",
+              "value": 10
+            },
+            {
+              "index": 5,
+              "key": "Q",
+              "value": 20
+            },
+            {
+              "index": 8,
+              "key": "a",
+              "value": 30
+            }
+          ],
+          "tombstones": [2, 9]
+        }
+      },
+      {
+        "hashmap": {
+          "capacity": 11,
+          "entries": [
+            {
+              "index": 4,
+              "key": "J",
+              "value": 10
+            },
+            {
+              "index": 5,
+              "key": "Q",
+              "value": 20
+            },
+            {
+              "index": 8,
+              "key": "a",
+              "value": 30
+            },
+            {
+              "index": 2,
+              "key": "l",
+              "value": 40
+            }
+          ],
+          "tombstones": [9]
+        }
+      },
+      {
+        "hashmap": {
+          "capacity": 11,
+          "entries": [
+            {
+              "index": 4,
+              "key": "J",
+              "value": 10
+            },
+            {
+              "index": 5,
+              "key": "Q",
+              "value": 20
+            },
+            {
+              "index": 8,
+              "key": "a",
+              "value": 30
+            },
+            {
+              "index": 2,
+              "key": "l",
+              "value": 40
+            },
+            {
+              "index": 9,
+              "key": "r",
+              "value": 50
+            }
+          ],
+          "tombstones": []
+        }
+      }
+    ]
+  }
+}
