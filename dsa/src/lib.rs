@@ -4,6 +4,7 @@ pub mod binary_heap;
 pub mod binary_search_tree;
 pub mod doubly_linked_list_safe;
 pub mod doubly_linked_list_unsafe;
+pub mod graph;
 pub mod hashmap;
 pub mod queue;
 pub mod radix_trie;
