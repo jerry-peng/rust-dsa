@@ -624,11 +624,9 @@ impl<K, V> Iterator for IntoIter<K, V> {
 
 #[cfg(test)]
 mod tests {
-    use std::{fs, path, vec};
-
-    use serde_json::Value;
-
     use super::*;
+    use serde_json::Value;
+    use std::{fs, path, vec};
 
     #[test]
     fn test_fnv1a_hasher() {
