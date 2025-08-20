@@ -1,0 +1,789 @@
+{
+  "graph": {
+    "A": {
+      "B": 8,
+      "C": 3,
+      "F": 13
+    },
+    "B": {
+      "C": 2,
+      "D": 1,
+      "K": 2
+    },
+    "C": {
+      "B": 3,
+      "D": 9,
+      "E": 2
+    },
+    "D": {
+      "E": 4,
+      "G": 6,
+      "H": 2,
+      "K": 3
+    },
+    "E": {
+      "A": 5,
+      "D": 6,
+      "F": 5,
+      "I": 4
+    },
+    "F": {
+      "G": 1,
+      "I": 7
+    },
+    "G": {
+      "E": 3,
+      "H": 4
+    },
+    "H": {
+      "I": 1
+    },
+    "I": {
+      "G": 5
+    },
+    "J": {
+      "F": 5,
+      "G": 2,
+      "H": 5
+    },
+    "K": {},
+    "L": {}
+  },
+  "is_connected": {
+    "A": {
+      "B": true,
+      "C": true,
+      "D": true,
+      "E": true,
+      "F": true,
+      "G": true,
+      "H": true,
+      "I": true,
+      "J": false,
+      "K": true,
+      "L": false
+    },
+    "B": {
+      "A": true,
+      "C": true,
+      "D": true,
+      "E": true,
+      "F": true,
+      "G": true,
+      "H": true,
+      "I": true,
+      "J": false,
+      "K": true,
+      "L": false
+    },
+    "C": {
+      "A": true,
+      "B": true,
+      "D": true,
+      "E": true,
+      "F": true,
+      "G": true,
+      "H": true,
+      "I": true,
+      "J": false,
+      "K": true,
+      "L": false
+    },
+    "D": {
+      "A": true,
+      "B": true,
+      "C": true,
+      "E": true,
+      "F": true,
+      "G": true,
+      "H": true,
+      "I": true,
+      "J": false,
+      "K": true,
+      "L": false
+    },
+    "E": {
+      "A": true,
+      "B": true,
+      "C": true,
+      "D": true,
+      "F": true,
+      "G": true,
+      "H": true,
+      "I": true,
+      "J": false,
+      "K": true,
+      "L": false
+    },
+    "F": {
+      "A": true,
+      "B": true,
+      "C": true,
+      "D": true,
+      "E": true,
+      "G": true,
+      "H": true,
+      "I": true,
+      "J": false,
+      "K": true,
+      "L": false
+    },
+    "G": {
+      "A": true,
+      "B": true,
+      "C": true,
+      "D": true,
+      "E": true,
+      "F": true,
+      "H": true,
+      "I": true,
+      "J": false,
+      "K": true,
+      "L": false
+    },
+    "H": {
+      "A": true,
+      "B": true,
+      "C": true,
+      "D": true,
+      "E": true,
+      "F": true,
+      "G": true,
+      "I": true,
+      "J": false,
+      "K": true,
+      "L": false
+    },
+    "I": {
+      "A": true,
+      "B": true,
+      "C": true,
+      "D": true,
+      "E": true,
+      "F": true,
+      "G": true,
+      "H": true,
+      "J": false,
+      "K": true,
+      "L": false
+    },
+    "J": {
+      "A": true,
+      "B": true,
+      "C": true,
+      "D": true,
+      "E": true,
+      "F": true,
+      "G": true,
+      "H": true,
+      "I": true,
+      "K": true,
+      "L": false
+    },
+    "K": {
+      "A": false,
+      "B": false,
+      "C": false,
+      "D": false,
+      "E": false,
+      "F": false,
+      "G": false,
+      "H": false,
+      "I": false,
+      "J": false,
+      "L": false
+    },
+    "L": {
+      "A": false,
+      "B": false,
+      "C": false,
+      "D": false,
+      "E": false,
+      "F": false,
+      "G": false,
+      "H": false,
+      "I": false,
+      "J": false,
+      "K": false
+    }
+  },
+  "shortest_path": {
+    "A": {
+      "A": [{ "node": "A", "weight": 0 }],
+      "B": [
+        { "node": "A", "weight": 0 },
+        { "node": "C", "weight": 3 },
+        { "node": "B", "weight": 3 }
+      ],
+      "C": [
+        { "node": "A", "weight": 0 },
+        { "node": "C", "weight": 3 }
+      ],
+      "D": [
+        { "node": "A", "weight": 0 },
+        { "node": "C", "weight": 3 },
+        { "node": "B", "weight": 3 },
+        { "node": "D", "weight": 1 }
+      ],
+      "E": [
+        { "node": "A", "weight": 0 },
+        { "node": "C", "weight": 3 },
+        { "node": "E", "weight": 2 }
+      ],
+      "F": [
+        { "node": "A", "weight": 0 },
+        { "node": "C", "weight": 3 },
+        { "node": "E", "weight": 2 },
+        { "node": "F", "weight": 5 }
+      ],
+      "G": [
+        { "node": "A", "weight": 0 },
+        { "node": "C", "weight": 3 },
+        { "node": "E", "weight": 2 },
+        { "node": "F", "weight": 5 },
+        { "node": "G", "weight": 1 }
+      ],
+      "H": [
+        { "node": "A", "weight": 0 },
+        { "node": "C", "weight": 3 },
+        { "node": "B", "weight": 3 },
+        { "node": "D", "weight": 1 },
+        { "node": "H", "weight": 2 }
+      ],
+      "I": [
+        { "node": "A", "weight": 0 },
+        { "node": "C", "weight": 3 },
+        { "node": "E", "weight": 2 },
+        { "node": "I", "weight": 4 }
+      ],
+      "J": [],
+      "K": [
+        { "node": "A", "weight": 0 },
+        { "node": "C", "weight": 3 },
+        { "node": "B", "weight": 3 },
+        { "node": "K", "weight": 2 }
+      ],
+      "L": []
+    },
+    "B": {
+      "A": [
+        { "node": "B", "weight": 0 },
+        { "node": "C", "weight": 2 },
+        { "node": "E", "weight": 2 },
+        { "node": "A", "weight": 5 }
+      ],
+      "B": [{ "node": "B", "weight": 0 }],
+      "C": [
+        { "node": "B", "weight": 0 },
+        { "node": "C", "weight": 2 }
+      ],
+      "D": [
+        { "node": "B", "weight": 0 },
+        { "node": "D", "weight": 1 }
+      ],
+      "E": [
+        { "node": "B", "weight": 0 },
+        { "node": "C", "weight": 2 },
+        { "node": "E", "weight": 2 }
+      ],
+      "F": [
+        { "node": "B", "weight": 0 },
+        { "node": "C", "weight": 2 },
+        { "node": "E", "weight": 2 },
+        { "node": "F", "weight": 5 }
+      ],
+      "G": [
+        { "node": "B", "weight": 0 },
+        { "node": "D", "weight": 1 },
+        { "node": "G", "weight": 6 }
+      ],
+      "H": [
+        { "node": "B", "weight": 0 },
+        { "node": "D", "weight": 1 },
+        { "node": "H", "weight": 2 }
+      ],
+      "I": [
+        { "node": "B", "weight": 0 },
+        { "node": "D", "weight": 1 },
+        { "node": "H", "weight": 2 },
+        { "node": "I", "weight": 1 }
+      ],
+      "J": [],
+      "K": [
+        { "node": "B", "weight": 0 },
+        { "node": "K", "weight": 2 }
+      ],
+      "L": []
+    },
+    "C": {
+      "A": [
+        { "node": "C", "weight": 0 },
+        { "node": "E", "weight": 2 },
+        { "node": "A", "weight": 5 }
+      ],
+      "B": [
+        { "node": "C", "weight": 0 },
+        { "node": "B", "weight": 3 }
+      ],
+      "C": [{ "node": "C", "weight": 0 }],
+      "D": [
+        { "node": "C", "weight": 0 },
+        { "node": "B", "weight": 3 },
+        { "node": "D", "weight": 1 }
+      ],
+      "E": [
+        { "node": "C", "weight": 0 },
+        { "node": "E", "weight": 2 }
+      ],
+      "F": [
+        { "node": "C", "weight": 0 },
+        { "node": "E", "weight": 2 },
+        { "node": "F", "weight": 5 }
+      ],
+      "G": [
+        { "node": "C", "weight": 0 },
+        { "node": "E", "weight": 2 },
+        { "node": "F", "weight": 5 },
+        { "node": "G", "weight": 1 }
+      ],
+      "H": [
+        { "node": "C", "weight": 0 },
+        { "node": "B", "weight": 3 },
+        { "node": "D", "weight": 1 },
+        { "node": "H", "weight": 2 }
+      ],
+      "I": [
+        { "node": "C", "weight": 0 },
+        { "node": "E", "weight": 2 },
+        { "node": "I", "weight": 4 }
+      ],
+      "J": [],
+      "K": [
+        { "node": "C", "weight": 0 },
+        { "node": "B", "weight": 3 },
+        { "node": "K", "weight": 2 }
+      ],
+      "L": []
+    },
+    "D": {
+      "A": [
+        { "node": "D", "weight": 0 },
+        { "node": "E", "weight": 4 },
+        { "node": "A", "weight": 5 }
+      ],
+      "B": [
+        { "node": "D", "weight": 0 },
+        { "node": "E", "weight": 4 },
+        { "node": "A", "weight": 5 },
+        { "node": "C", "weight": 3 },
+        { "node": "B", "weight": 3 }
+      ],
+      "C": [
+        { "node": "D", "weight": 0 },
+        { "node": "E", "weight": 4 },
+        { "node": "A", "weight": 5 },
+        { "node": "C", "weight": 3 }
+      ],
+      "D": [{ "node": "D", "weight": 0 }],
+      "E": [
+        { "node": "D", "weight": 0 },
+        { "node": "E", "weight": 4 }
+      ],
+      "F": [
+        { "node": "D", "weight": 0 },
+        { "node": "E", "weight": 4 },
+        { "node": "F", "weight": 5 }
+      ],
+      "G": [
+        { "node": "D", "weight": 0 },
+        { "node": "G", "weight": 6 }
+      ],
+      "H": [
+        { "node": "D", "weight": 0 },
+        { "node": "H", "weight": 2 }
+      ],
+      "I": [
+        { "node": "D", "weight": 0 },
+        { "node": "H", "weight": 2 },
+        { "node": "I", "weight": 1 }
+      ],
+      "J": [],
+      "K": [
+        { "node": "D", "weight": 0 },
+        { "node": "K", "weight": 3 }
+      ],
+      "L": []
+    },
+    "E": {
+      "A": [
+        { "node": "E", "weight": 0 },
+        { "node": "A", "weight": 5 }
+      ],
+      "B": [
+        { "node": "E", "weight": 0 },
+        { "node": "A", "weight": 5 },
+        { "node": "C", "weight": 3 },
+        { "node": "B", "weight": 3 }
+      ],
+      "C": [
+        { "node": "E", "weight": 0 },
+        { "node": "A", "weight": 5 },
+        { "node": "C", "weight": 3 }
+      ],
+      "D": [
+        { "node": "E", "weight": 0 },
+        { "node": "D", "weight": 6 }
+      ],
+      "E": [{ "node": "E", "weight": 0 }],
+      "F": [
+        { "node": "E", "weight": 0 },
+        { "node": "F", "weight": 5 }
+      ],
+      "G": [
+        { "node": "E", "weight": 0 },
+        { "node": "F", "weight": 5 },
+        { "node": "G", "weight": 1 }
+      ],
+      "H": [
+        { "node": "E", "weight": 0 },
+        { "node": "D", "weight": 6 },
+        { "node": "H", "weight": 2 }
+      ],
+      "I": [
+        { "node": "E", "weight": 0 },
+        { "node": "I", "weight": 4 }
+      ],
+      "J": [],
+      "K": [
+        { "node": "E", "weight": 0 },
+        { "node": "D", "weight": 6 },
+        { "node": "K", "weight": 3 }
+      ],
+      "L": []
+    },
+    "F": {
+      "A": [
+        { "node": "F", "weight": 0 },
+        { "node": "G", "weight": 1 },
+        { "node": "E", "weight": 3 },
+        { "node": "A", "weight": 5 }
+      ],
+      "B": [
+        { "node": "F", "weight": 0 },
+        { "node": "G", "weight": 1 },
+        { "node": "E", "weight": 3 },
+        { "node": "A", "weight": 5 },
+        { "node": "C", "weight": 3 },
+        { "node": "B", "weight": 3 }
+      ],
+      "C": [
+        { "node": "F", "weight": 0 },
+        { "node": "G", "weight": 1 },
+        { "node": "E", "weight": 3 },
+        { "node": "A", "weight": 5 },
+        { "node": "C", "weight": 3 }
+      ],
+      "D": [
+        { "node": "F", "weight": 0 },
+        { "node": "G", "weight": 1 },
+        { "node": "E", "weight": 3 },
+        { "node": "D", "weight": 6 }
+      ],
+      "E": [
+        { "node": "F", "weight": 0 },
+        { "node": "G", "weight": 1 },
+        { "node": "E", "weight": 3 }
+      ],
+      "F": [{ "node": "F", "weight": 0 }],
+      "G": [
+        { "node": "F", "weight": 0 },
+        { "node": "G", "weight": 1 }
+      ],
+      "H": [
+        { "node": "F", "weight": 0 },
+        { "node": "G", "weight": 1 },
+        { "node": "H", "weight": 4 }
+      ],
+      "I": [
+        { "node": "F", "weight": 0 },
+        { "node": "G", "weight": 1 },
+        { "node": "H", "weight": 4 },
+        { "node": "I", "weight": 1 }
+      ],
+      "J": [],
+      "K": [
+        { "node": "F", "weight": 0 },
+        { "node": "G", "weight": 1 },
+        { "node": "E", "weight": 3 },
+        { "node": "D", "weight": 6 },
+        { "node": "K", "weight": 3 }
+      ],
+      "L": []
+    },
+    "G": {
+      "A": [
+        { "node": "G", "weight": 0 },
+        { "node": "E", "weight": 3 },
+        { "node": "A", "weight": 5 }
+      ],
+      "B": [
+        { "node": "G", "weight": 0 },
+        { "node": "E", "weight": 3 },
+        { "node": "A", "weight": 5 },
+        { "node": "C", "weight": 3 },
+        { "node": "B", "weight": 3 }
+      ],
+      "C": [
+        { "node": "G", "weight": 0 },
+        { "node": "E", "weight": 3 },
+        { "node": "A", "weight": 5 },
+        { "node": "C", "weight": 3 }
+      ],
+      "D": [
+        { "node": "G", "weight": 0 },
+        { "node": "E", "weight": 3 },
+        { "node": "D", "weight": 6 }
+      ],
+      "E": [
+        { "node": "G", "weight": 0 },
+        { "node": "E", "weight": 3 }
+      ],
+      "F": [
+        { "node": "G", "weight": 0 },
+        { "node": "E", "weight": 3 },
+        { "node": "F", "weight": 5 }
+      ],
+      "G": [{ "node": "G", "weight": 0 }],
+      "H": [
+        { "node": "G", "weight": 0 },
+        { "node": "H", "weight": 4 }
+      ],
+      "I": [
+        { "node": "G", "weight": 0 },
+        { "node": "H", "weight": 4 },
+        { "node": "I", "weight": 1 }
+      ],
+      "J": [],
+      "K": [
+        { "node": "G", "weight": 0 },
+        { "node": "E", "weight": 3 },
+        { "node": "D", "weight": 6 },
+        { "node": "K", "weight": 3 }
+      ],
+      "L": []
+    },
+    "H": {
+      "A": [
+        { "node": "H", "weight": 0 },
+        { "node": "I", "weight": 1 },
+        { "node": "G", "weight": 5 },
+        { "node": "E", "weight": 3 },
+        { "node": "A", "weight": 5 }
+      ],
+      "B": [
+        { "node": "H", "weight": 0 },
+        { "node": "I", "weight": 1 },
+        { "node": "G", "weight": 5 },
+        { "node": "E", "weight": 3 },
+        { "node": "A", "weight": 5 },
+        { "node": "C", "weight": 3 },
+        { "node": "B", "weight": 3 }
+      ],
+      "C": [
+        { "node": "H", "weight": 0 },
+        { "node": "I", "weight": 1 },
+        { "node": "G", "weight": 5 },
+        { "node": "E", "weight": 3 },
+        { "node": "A", "weight": 5 },
+        { "node": "C", "weight": 3 }
+      ],
+      "D": [
+        { "node": "H", "weight": 0 },
+        { "node": "I", "weight": 1 },
+        { "node": "G", "weight": 5 },
+        { "node": "E", "weight": 3 },
+        { "node": "D", "weight": 6 }
+      ],
+      "E": [
+        { "node": "H", "weight": 0 },
+        { "node": "I", "weight": 1 },
+        { "node": "G", "weight": 5 },
+        { "node": "E", "weight": 3 }
+      ],
+      "F": [
+        { "node": "H", "weight": 0 },
+        { "node": "I", "weight": 1 },
+        { "node": "G", "weight": 5 },
+        { "node": "E", "weight": 3 },
+        { "node": "F", "weight": 5 }
+      ],
+      "G": [
+        { "node": "H", "weight": 0 },
+        { "node": "I", "weight": 1 },
+        { "node": "G", "weight": 5 }
+      ],
+      "H": [{ "node": "H", "weight": 0 }],
+      "I": [
+        { "node": "H", "weight": 0 },
+        { "node": "I", "weight": 1 }
+      ],
+      "J": [],
+      "K": [
+        { "node": "H", "weight": 0 },
+        { "node": "I", "weight": 1 },
+        { "node": "G", "weight": 5 },
+        { "node": "E", "weight": 3 },
+        { "node": "D", "weight": 6 },
+        { "node": "K", "weight": 3 }
+      ],
+      "L": []
+    },
+    "I": {
+      "A": [
+        { "node": "I", "weight": 0 },
+        { "node": "G", "weight": 5 },
+        { "node": "E", "weight": 3 },
+        { "node": "A", "weight": 5 }
+      ],
+      "B": [
+        { "node": "I", "weight": 0 },
+        { "node": "G", "weight": 5 },
+        { "node": "E", "weight": 3 },
+        { "node": "A", "weight": 5 },
+        { "node": "C", "weight": 3 },
+        { "node": "B", "weight": 3 }
+      ],
+      "C": [
+        { "node": "I", "weight": 0 },
+        { "node": "G", "weight": 5 },
+        { "node": "E", "weight": 3 },
+        { "node": "A", "weight": 5 },
+        { "node": "C", "weight": 3 }
+      ],
+      "D": [
+        { "node": "I", "weight": 0 },
+        { "node": "G", "weight": 5 },
+        { "node": "E", "weight": 3 },
+        { "node": "D", "weight": 6 }
+      ],
+      "E": [
+        { "node": "I", "weight": 0 },
+        { "node": "G", "weight": 5 },
+        { "node": "E", "weight": 3 }
+      ],
+      "F": [
+        { "node": "I", "weight": 0 },
+        { "node": "G", "weight": 5 },
+        { "node": "E", "weight": 3 },
+        { "node": "F", "weight": 5 }
+      ],
+      "G": [
+        { "node": "I", "weight": 0 },
+        { "node": "G", "weight": 5 }
+      ],
+      "H": [
+        { "node": "I", "weight": 0 },
+        { "node": "G", "weight": 5 },
+        { "node": "H", "weight": 4 }
+      ],
+      "I": [{ "node": "I", "weight": 0 }],
+      "J": [],
+      "K": [
+        { "node": "I", "weight": 0 },
+        { "node": "G", "weight": 5 },
+        { "node": "E", "weight": 3 },
+        { "node": "D", "weight": 6 },
+        { "node": "K", "weight": 3 }
+      ],
+      "L": []
+    },
+    "J": {
+      "A": [
+        { "node": "J", "weight": 0 },
+        { "node": "G", "weight": 2 },
+        { "node": "E", "weight": 3 },
+        { "node": "A", "weight": 5 }
+      ],
+      "B": [
+        { "node": "J", "weight": 0 },
+        { "node": "G", "weight": 2 },
+        { "node": "E", "weight": 3 },
+        { "node": "A", "weight": 5 },
+        { "node": "C", "weight": 3 },
+        { "node": "B", "weight": 3 }
+      ],
+      "C": [
+        { "node": "J", "weight": 0 },
+        { "node": "G", "weight": 2 },
+        { "node": "E", "weight": 3 },
+        { "node": "A", "weight": 5 },
+        { "node": "C", "weight": 3 }
+      ],
+      "D": [
+        { "node": "J", "weight": 0 },
+        { "node": "G", "weight": 2 },
+        { "node": "E", "weight": 3 },
+        { "node": "D", "weight": 6 }
+      ],
+      "E": [
+        { "node": "J", "weight": 0 },
+        { "node": "G", "weight": 2 },
+        { "node": "E", "weight": 3 }
+      ],
+      "F": [
+        { "node": "J", "weight": 0 },
+        { "node": "F", "weight": 5 }
+      ],
+      "G": [
+        { "node": "J", "weight": 0 },
+        { "node": "G", "weight": 2 }
+      ],
+      "H": [
+        { "node": "J", "weight": 0 },
+        { "node": "H", "weight": 5 }
+      ],
+      "I": [
+        { "node": "J", "weight": 0 },
+        { "node": "H", "weight": 5 },
+        { "node": "I", "weight": 1 }
+      ],
+      "J": [{ "node": "J", "weight": 0 }],
+      "K": [
+        { "node": "J", "weight": 0 },
+        { "node": "G", "weight": 2 },
+        { "node": "E", "weight": 3 },
+        { "node": "D", "weight": 6 },
+        { "node": "K", "weight": 3 }
+      ],
+      "L": []
+    },
+    "K": {
+      "A": [],
+      "B": [],
+      "C": [],
+      "D": [],
+      "E": [],
+      "F": [],
+      "G": [],
+      "H": [],
+      "I": [],
+      "J": [],
+      "K": [{ "node": "K", "weight": 0 }],
+      "L": []
+    },
+    "L": {
+      "A": [],
+      "B": [],
+      "C": [],
+      "D": [],
+      "E": [],
+      "F": [],
+      "G": [],
+      "H": [],
+      "I": [],
+      "J": [],
+      "K": [],
+      "L": [{ "node": "L", "weight": 0 }]
+    }
+  }
+}
