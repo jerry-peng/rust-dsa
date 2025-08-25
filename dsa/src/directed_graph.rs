@@ -266,8 +266,8 @@ impl DirectedGraph {
 
     /// Remove edge
     ///
-    /// * `from_id`: from-node ID
-    /// * `to_id`: to-node ID
+    /// * `src_node_id`: source node ID
+    /// * `dest_node_id`: destination node ID
     ///
     /// # Example
     ///
@@ -815,7 +815,7 @@ impl DirectedGraph {
     /// assert_eq!(edge_item, EdgeItemMut { id: &"B".to_string(), weight: &mut 5usize});
     /// ```
     pub fn iter_in_bound_edges_mut(&mut self, id: &str) -> IterInBoundEdgesMut {
-        let from_nodes: Vec<String> = self
+        let src_node_ids: Vec<String> = self
             .get_node_unchecked(id)
             .in_bound_edges
             .iter()
@@ -823,7 +823,7 @@ impl DirectedGraph {
             .collect();
         IterInBoundEdgesMut {
             graph: self,
-            src_node_ids: from_nodes,
+            src_node_ids,
             id: id.to_string(),
         }
     }
@@ -1006,14 +1006,15 @@ mod tests {
         serde_json::from_str(json_string.as_str()).unwrap()
     }
 
+    /// read test json and return graph shape
     fn get_graph_shape() -> GraphShape {
         let json_data = read_json_data();
         let data = json_data["graph"].as_object().unwrap();
         let mut nodes: HashMap<String, HashMap<String, usize>> = HashMap::new();
-        for node_id in data.keys() {
-            nodes.insert(node_id.clone(), HashMap::new());
-        }
+
+        // for each source node ID, insert source node and its destination nodes/weights
         for (node_id, edges) in data {
+            nodes.insert(node_id.clone(), HashMap::new());
             for (to_node_id, weight) in edges.as_object().unwrap() {
                 let weight = usize::try_from(weight.as_u64().unwrap()).unwrap();
                 nodes.entry(node_id.clone()).and_modify(|v| {
@@ -1024,40 +1025,43 @@ mod tests {
         nodes
     }
 
+    /// read graph shape and return node IDs
     fn get_node_ids() -> Vec<String> {
         get_graph_shape().into_keys().collect()
     }
 
+    /// read and return data on connection status of all nodes
     fn get_is_connected_data() -> IsConnectedData {
         let json_data = read_json_data();
         let data = json_data["is_connected"].as_object().unwrap();
         let mut node_connections: HashMap<String, HashMap<String, bool>> = HashMap::new();
-        for node_id in data.keys() {
-            node_connections.insert(node_id.clone(), HashMap::new());
-        }
-        for (from_node_id, to_nodes) in data {
-            for (to_node_id, is_connected) in to_nodes.as_object().unwrap() {
+
+        // for each source node ID, insert source node, and its destination nodes/connection
+        // statuses
+        for (src_node_id, dest_node_data) in data {
+            node_connections.insert(src_node_id.clone(), HashMap::new());
+            for (dest_node_id, is_connected) in dest_node_data.as_object().unwrap() {
                 let is_connected = is_connected.as_bool().unwrap();
-                node_connections
-                    .entry(from_node_id.clone())
-                    .and_modify(|v| {
-                        v.insert(to_node_id.clone(), is_connected);
-                    });
+                node_connections.entry(src_node_id.clone()).and_modify(|v| {
+                    v.insert(dest_node_id.clone(), is_connected);
+                });
             }
         }
         node_connections
     }
 
+    /// read and return data on shortest path data between all nodes
     fn get_shortest_path_data() -> ShortestPathData {
         let json_data = read_json_data();
         let data = json_data["shortest_path"].as_object().unwrap();
         let mut shortest_paths: ShortestPathData = HashMap::new();
-        for node_id in data.keys() {
-            shortest_paths.insert(node_id.clone(), HashMap::new());
-        }
-        for (from_node_id, to_nodes) in data {
-            for (to_node_id, path_nodes) in to_nodes.as_object().unwrap() {
-                let path_item = path_nodes
+        // for each source node ID< insert source node, and its destination nodes, and shortest
+        // path data
+        for (src_node_id, dest_node_data) in data {
+            shortest_paths.insert(src_node_id.clone(), HashMap::new());
+            for (dest_node_id, path_nodes) in dest_node_data.as_object().unwrap() {
+                // path nodes is a list of node IDs and weights
+                let path_data = path_nodes
                     .as_array()
                     .unwrap()
                     .iter()
@@ -1068,20 +1072,23 @@ mod tests {
                         (node_id.to_string(), weight)
                     })
                     .collect();
-                shortest_paths.entry(from_node_id.clone()).and_modify(|v| {
-                    v.insert(to_node_id.clone(), path_item);
+                shortest_paths.entry(src_node_id.clone()).and_modify(|v| {
+                    v.insert(dest_node_id.clone(), path_data);
                 });
             }
         }
         shortest_paths
     }
 
+    /// Generate test graph
     fn gen_test_graph() -> DirectedGraph {
         let mut graph = DirectedGraph::new();
         let data = get_graph_shape();
+        // insert nodes
         for node_id in data.keys() {
             let _ = graph.add_node(node_id.clone());
         }
+        // connect edges
         for (node_id, edges) in data {
             for (to_node_id, weight) in edges {
                 let _ = graph.assign_edge(node_id.clone(), to_node_id, weight);
@@ -1117,7 +1124,7 @@ mod tests {
     fn test_add_remove_nodes() {
         let node_ids: Vec<String> = get_node_ids();
         let mut graph = DirectedGraph::new();
-        // insert and verify
+        // add node and verify
         for (index, id) in node_ids.iter().enumerate() {
             assert_eq!(graph.get_node(id), None);
             assert_eq!(graph.add_node(id.clone()), Ok(()));
@@ -1134,7 +1141,7 @@ mod tests {
             assert_eq!(graph.size(), index + 1);
         }
 
-        // remove and verify
+        // remove node and verify
         for (index, id) in node_ids.iter().enumerate() {
             assert!(!graph.is_empty());
             assert_eq!(graph.size(), node_ids.len() - index);
@@ -1168,7 +1175,7 @@ mod tests {
             }
         }
 
-        // add_edges and verify
+        // add edges and verify
         for (node_id, edges) in graph_shape.iter() {
             for (to_node_id, weight) in edges {
                 assert_eq!(
@@ -1205,11 +1212,11 @@ mod tests {
     #[test]
     fn test_assign_remove_edges_non_existent_node() {
         let mut graph = DirectedGraph::new();
-        // verify edge empty node
+        // edge weight does not exist on non-existent nodes
         assert_eq!(graph.get_edge_weight("A", "B"), None);
         assert_eq!(graph.get_edge_weight("B", "A"), None);
 
-        // assign_edge fails
+        // assign edge fails on non-existent nodes
         assert_eq!(
             graph.assign_edge("A".to_string(), "B".to_string(), 10),
             Err(InvalidNodeErr)
@@ -1218,13 +1225,13 @@ mod tests {
             graph.assign_edge("B".to_string(), "A".to_string(), 20),
             Err(InvalidNodeErr)
         );
-        // remove edge empty node
+        // remove edge on non-existent nodes returns None
         assert_eq!(graph.remove_edge("A", "B"), None);
         assert_eq!(graph.remove_edge("B", "A"), None);
     }
 
     #[test]
-    fn test_assign_remove_edges_same_from_to_ids_fails() {
+    fn test_assign_remove_edges_same_src_dest_ids_fails() {
         let mut graph = DirectedGraph::new();
         // add only 1 node
         let _ = graph.add_node("A".to_string());
@@ -1239,14 +1246,17 @@ mod tests {
     }
 
     #[test]
-    fn test_add_remove_nodes_with_edges() {
+    fn test_remove_nodes_with_edges() {
         let graph_shape = get_graph_shape();
 
+        // for each node ID, generate new test graph (with edges), remove node, and verify
         for node_id in graph_shape.keys() {
             let mut graph = gen_test_graph();
             assert!(graph.get_node(node_id).is_some());
             assert!(graph.remove_node(node_id));
             assert_eq!(graph.get_node(node_id), None);
+
+            // verify node ID is completely removed from graph nodes
             for node in graph.iter_nodes() {
                 assert_ne!(node.id, node_id);
                 assert!(!node.out_bound_edges.contains_key(node_id));
@@ -1260,12 +1270,15 @@ mod tests {
         let graph_shape = get_graph_shape();
         let node_ids = graph_shape.keys();
 
+        // for each node ID, generate new test graph, detach node and verify
         for node_id in node_ids {
             let mut graph = gen_test_graph();
             assert!(graph.get_node(node_id).is_some());
             graph.detach_node(node_id);
             assert!(graph.get_node(node_id).is_some());
 
+            // verify n ode ID is completely removed from connected nodes,
+            // and the detached node has no in-bound/out-bound edges.
             for node in graph.iter_nodes() {
                 if node.id != node_id {
                     assert!(!node.out_bound_edges.contains_key(node_id));
@@ -1280,21 +1293,23 @@ mod tests {
 
     #[test]
     fn test_detach_non_existent_node() {
+        // detach non-existent node returns false
         let mut graph = gen_test_graph();
         assert!(!graph.detach_node("non_existent"));
     }
 
     #[test]
     fn test_detach_all_nodes() {
-        // empty
+        // detach all on empty graph
         let mut graph = DirectedGraph::new();
         graph.detach_all_nodes();
         assert!(graph.is_empty());
 
-        // non-empty
+        // detach all on test graph
         let mut graph = gen_test_graph();
-        let graph_shape = get_graph_shape();
         graph.detach_all_nodes();
+        // verify all nodes remain with no edge
+        let graph_shape = get_graph_shape();
         for node_id in graph_shape.keys() {
             assert_eq!(
                 graph.get_node(node_id),
@@ -1309,7 +1324,7 @@ mod tests {
 
     #[test]
     fn test_clear_graph() {
-        // empty
+        // clear on empty graph
         let mut graph = DirectedGraph::new();
         graph.clear();
         assert_eq!(
@@ -1320,7 +1335,7 @@ mod tests {
             }
         );
 
-        // non-empty
+        // clear on non-empty graph
         let mut graph = gen_test_graph();
         graph.clear();
         assert_eq!(
@@ -1338,14 +1353,19 @@ mod tests {
         let node_ids: Vec<String> = get_node_ids();
         let data = get_is_connected_data();
 
-        for from_node_id in node_ids.iter() {
-            for to_node_id in node_ids.iter() {
+        // for each combination of source/destination node, verify `is_connected` returns expected
+        // value
+        for src_node_id in node_ids.iter() {
+            for dest_node_id in node_ids.iter() {
+                // breadth-first search and depth-first search should return same results
                 for search_type in [SearchType::DepthFirst, SearchType::BreadthFirst] {
-                    let result = graph.is_connected(from_node_id, to_node_id, search_type);
-                    if from_node_id == to_node_id {
+                    let result = graph.is_connected(src_node_id, dest_node_id, search_type);
+                    if src_node_id == dest_node_id {
+                        // if source and destination node IDs are identical, `is_connected` returns
+                        // error
                         assert_eq!(result, Err(InvalidNodeErr))
                     } else {
-                        assert_eq!(result, Ok(data[from_node_id][to_node_id]));
+                        assert_eq!(result, Ok(data[src_node_id][dest_node_id]));
                     }
                 }
             }
@@ -1357,6 +1377,7 @@ mod tests {
         let graph = gen_test_graph();
         let node_ids: Vec<String> = get_node_ids();
 
+        // `is_connected` returns error if source and/or destination node do not exist
         for node_id in node_ids.iter() {
             assert_eq!(
                 graph.is_connected(node_id, "NonExistent", SearchType::DepthFirst),
@@ -1374,6 +1395,10 @@ mod tests {
                 graph.is_connected("NonExistent", node_id, SearchType::BreadthFirst),
                 Err(InvalidNodeErr)
             );
+            assert_eq!(
+                graph.is_connected("NonExistent", "NonExistent", SearchType::BreadthFirst),
+                Err(InvalidNodeErr)
+            );
         }
     }
 
@@ -1383,11 +1408,12 @@ mod tests {
         let node_ids: Vec<String> = get_node_ids();
         let data = get_shortest_path_data();
 
-        for from_node_id in node_ids.iter() {
-            for to_node_id in node_ids.iter() {
+        // for each combination of source/destination node, verify shortest path nodes
+        for src_node_id in node_ids.iter() {
+            for dest_node_id in node_ids.iter() {
                 assert_eq!(
-                    graph.get_shortest_path(from_node_id, to_node_id),
-                    Ok(data[from_node_id][to_node_id]
+                    graph.get_shortest_path(src_node_id, dest_node_id),
+                    Ok(data[src_node_id][dest_node_id]
                         .iter()
                         .map(|item| (&item.0, item.1))
                         .collect())
@@ -1401,6 +1427,7 @@ mod tests {
         let graph = gen_test_graph();
         let node_ids: Vec<String> = get_node_ids();
 
+        // `get_shortest_path` returns error if source and/or destination node do not exist
         for node_id in node_ids.iter() {
             assert_eq!(
                 graph.get_shortest_path(node_id, "NonExistent"),
@@ -1408,6 +1435,10 @@ mod tests {
             );
             assert_eq!(
                 graph.get_shortest_path("NonExistent", node_id),
+                Err(InvalidNodeErr)
+            );
+            assert_eq!(
+                graph.get_shortest_path("NonExistent", "NonExistent"),
                 Err(InvalidNodeErr)
             );
         }
@@ -1421,9 +1452,11 @@ mod tests {
 
         let graph_shape = get_graph_shape();
         let graph = gen_test_graph();
+
+        // for node in node iterator, verify node item values are correct
         for node in graph.iter_nodes() {
             let node_id = node.id;
-            let from_nodes: HashSet<String> = HashSet::from_iter(
+            let in_bound_nodes: HashSet<String> = HashSet::from_iter(
                 graph_shape
                     .iter()
                     .filter(|(_key, val)| val.contains_key(node_id))
@@ -1431,76 +1464,89 @@ mod tests {
             );
             assert_eq!(
                 HashSet::from_iter(node.in_bound_edges.iter().cloned()),
-                from_nodes
+                in_bound_nodes
             );
             assert_eq!(node.out_bound_edges, &graph_shape[node_id]);
         }
+
+        // verify all nodes are returned
+        let expected_node_ids: HashSet<String> = HashSet::from_iter(get_node_ids().iter().cloned());
+        let node_ids = HashSet::from_iter(graph.iter_nodes().map(|item| item.id.clone()));
+        assert_eq!(node_ids, expected_node_ids);
     }
 
     #[test]
-    fn test_iter_to_edges() {
+    fn test_iter_out_bound_edges() {
         let graph = gen_test_graph();
+        // for each graph node, collect from out-bound edges iterator and verify
         for node in graph.iter_nodes() {
-            let to_edges: HashMap<String, usize> = graph
+            let out_bound_edges: HashMap<String, usize> = graph
                 .iter_out_bound_edges(node.id)
                 .map(|item| (item.id.clone(), *item.weight))
                 .collect();
-            assert_eq!(&to_edges, node.out_bound_edges);
+            assert_eq!(&out_bound_edges, node.out_bound_edges);
         }
     }
 
     #[test]
-    fn test_iter_to_edges_mut() {
+    fn test_iter_out_bound_edges_mut() {
         let mut graph = gen_test_graph();
+        // for each graph node
         for node_id in get_node_ids() {
-            let mut expected_to_edges = graph.get_node(&node_id).unwrap().out_bound_edges.clone();
-            let to_edges: HashMap<String, usize> = graph
+            // collect from out-bound edges mutable iterator and verify
+            let mut expected_out_bound_edges =
+                graph.get_node(&node_id).unwrap().out_bound_edges.clone();
+            let out_bound_edges: HashMap<String, usize> = graph
                 .iter_out_bound_edges_mut(&node_id)
                 .map(|item| (item.id.clone(), *item.weight))
                 .collect();
-            assert_eq!(to_edges, expected_to_edges);
+            assert_eq!(out_bound_edges, expected_out_bound_edges);
 
-            // add 10 weight
+            // add 10 weight to out-bound edges
             graph.iter_out_bound_edges_mut(&node_id).for_each(|item| {
                 *item.weight += 10;
             });
 
-            // add 10 weight to expected edges
-            expected_to_edges.values_mut().for_each(|item| {
+            // add 10 weight to expected out-bound edges
+            expected_out_bound_edges.values_mut().for_each(|item| {
                 *item += 10;
             });
-            // refetch to edges
-            let to_edges: HashMap<String, usize> = graph
+
+            // re-collect from out-bound edges mutable iterator and verify
+            let out_bound_edges: HashMap<String, usize> = graph
                 .iter_out_bound_edges(&node_id)
                 .map(|item| (item.id.clone(), *item.weight))
                 .collect();
-            assert_eq!(to_edges, expected_to_edges);
+            assert_eq!(out_bound_edges, expected_out_bound_edges);
         }
     }
 
     #[test]
-    fn test_iter_from_edges() {
+    fn test_iter_in_bound_edges() {
         let graph = gen_test_graph();
+        // for each graph node, collect from in-bound edges iterator and verify
         for node in graph.iter_nodes() {
-            let expected_from_edges: HashMap<String, usize> = node
+            let expected_in_bound_edges: HashMap<String, usize> = node
                 .in_bound_edges
                 .iter()
                 .map(|item| (item.clone(), *graph.get_edge_weight(item, node.id).unwrap()))
                 .collect();
-            let from_edges: HashMap<String, usize> = graph
+            let in_bound_edges: HashMap<String, usize> = graph
                 .iter_in_bound_edges(node.id)
                 .map(|item| (item.id.clone(), *item.weight))
                 .collect();
-            assert_eq!(from_edges, expected_from_edges);
+            assert_eq!(in_bound_edges, expected_in_bound_edges);
         }
     }
 
     #[test]
-    fn test_iter_from_edges_mut() {
+    fn test_iter_in_bound_edges_mut() {
         let mut graph = gen_test_graph();
 
+        // for each graph node
         for node_id in get_node_ids() {
-            let mut expected_from_edges = graph
+            // collect from in-bound edges mutable iterator and verify
+            let mut expected_in_bound_edges = graph
                 .get_node(&node_id)
                 .unwrap()
                 .in_bound_edges
@@ -1512,28 +1558,28 @@ mod tests {
                     )
                 })
                 .collect();
-            let from_edges: HashMap<String, usize> = graph
+            let in_bound_edges: HashMap<String, usize> = graph
                 .iter_in_bound_edges_mut(&node_id)
                 .map(|item| (item.id.clone(), *item.weight))
                 .collect();
-            assert_eq!(from_edges, expected_from_edges);
+            assert_eq!(in_bound_edges, expected_in_bound_edges);
 
-            // add 10 weight
+            // add 10 weight to in-bound edges
             graph.iter_in_bound_edges_mut(&node_id).for_each(|item| {
                 *item.weight += 10;
             });
 
-            // add 10 weight to expected edges
-            expected_from_edges.values_mut().for_each(|item| {
+            // add 10 weight to expected in-bound edges
+            expected_in_bound_edges.values_mut().for_each(|item| {
                 *item += 10;
             });
-            // refetch from edges
-            let from_edges: HashMap<String, usize> = graph
+            // re-collect from in-bound edges mutable iterator and verify
+            let in_bound_edges: HashMap<String, usize> = graph
                 .iter_in_bound_edges(&node_id)
                 .map(|item| (item.id.clone(), *item.weight))
                 .collect();
 
-            assert_eq!(from_edges, expected_from_edges);
+            assert_eq!(in_bound_edges, expected_in_bound_edges);
         }
     }
 }
